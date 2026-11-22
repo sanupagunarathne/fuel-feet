@@ -4,7 +4,7 @@ Fuel Feet is a planned web application for a Sri Lankan fuel transportation busi
 
 ## Project status
 
-Phase 03 adds a responsive dashboard, read-only sample record views, Colombo reporting periods, and a saved appearance preference. Demonstration figures and records come from labeled frontend fixtures. The API connection indicator makes a live HTTP check. [Implementation checklist](docs/implementation-checklist.md)
+Phases 04 and 05 add Supabase sign-in with TOTP, server-side administrator authorization, and the PostgreSQL schema. The workspace still displays clearly labeled sample figures while business record entry is being built. [Implementation checklist](docs/implementation-checklist.md)
 
 ## Local development
 
@@ -12,12 +12,12 @@ Use Node 24.22.3 and npm 11.19.1, the versions used to verify this workspace. If
 
 ```sh
 npm ci
-npm run dev
+VITE_DEMO_MODE=true npm run dev
 ```
 
 The web app runs at `http://localhost:5173` and the API at `http://localhost:4000`. Open the web app and look for **Connected** under API status, or run `curl -fsS http://localhost:4000/api/health` to check Express directly. The API returns `{"status":"ok"}`.
 
-Defaults work without external services. To change them, copy `.env.example` to `.env` in the repository root. Set `PORT` to change both the local API listener and Vite proxy target. Set `WEB_ORIGIN` to the browser origin when accessing Express directly from another origin. Set `VITE_API_BASE_URL` at web build time when the API is hosted separately.
+The explicit demo mode works without external services. For a signed-in workspace, follow [authentication and provisioning](docs/authentication.md) and [database migration setup](docs/database-schema.md). To override defaults, copy `.env.example` to `.env` in the repository root. Set `PORT` to change both the local API listener and Vite proxy target. Set `WEB_ORIGIN` to the browser origin when accessing Express directly from another origin. Set `VITE_API_BASE_URL` at web build time when the API is hosted separately.
 
 ## Check and build
 
@@ -37,6 +37,7 @@ Run `npx playwright install chromium` once, then `npm run test:e2e`. Alternative
 | Document | Covers |
 | --- | --- |
 | [Requirements](docs/requirements.md) | Business workflows, scope, and decisions for the owner |
+| [Authentication](docs/authentication.md) | Supabase setup, MFA, and owner provisioning |
 | [Architecture](docs/architecture.md) | Workspace, services, authentication, and integrity |
 | [Database schema](docs/database-schema.md) | Proposed entities, relationships, and constraints |
 | [Financial rules](docs/financial-rules.md) | Earnings, payments, profit, dates, and rounding |

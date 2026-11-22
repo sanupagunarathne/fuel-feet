@@ -3,10 +3,17 @@ import cors from 'cors';
 import express from 'express';
 import type { ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import { apiErrorResponseSchema, healthResponseSchema } from '@fuel-feet/shared';
+import { requireAdmin } from './auth.js';
+import type { AuthDependencies } from './auth.js';
 import { logger } from './logger.js';
 
-export function createApp({ webOrigin }: { webOrigin: string }) {
+export function createApp({ webOrigin, auth, databaseReady }: {
+  webOrigin: string;
+  auth?: AuthDependencies;
+  databaseReady?: () => Promise<void>;
+}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -32,6 +39,37 @@ export function createApp({ webOrigin }: { webOrigin: string }) {
   app.get('/api/health', (_request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.json(healthResponseSchema.parse({ status: 'ok' }));
+  });
+
+  app.get('/api/ready', async (_request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    try {
+      if (!auth || !databaseReady) throw new Error('Dependencies unavailable');
+      await databaseReady();
+      response.json({ status: 'ok' });
+    } catch {
+      response.status(503).json({ status: 'unavailable' });
+    }
+  });
+
+  const accessLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 60,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_request, response) => {
+      response.setHeader('Cache-Control', 'no-store');
+      response.status(429).json(apiErrorResponseSchema.parse({
+        error: {
+          code: 'RATE_LIMITED', message: 'Too many requests. Try again shortly.',
+          requestId: response.get('X-Request-Id'),
+        },
+      }));
+    },
+  });
+
+  app.get('/api/me', accessLimiter, requireAdmin(auth), (_request, response) => {
+    response.json(response.locals.admin);
   });
 
   app.use((_request, response) => {

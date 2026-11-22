@@ -2,11 +2,11 @@
 
 ## Local development
 
-Use the pinned Node and npm versions and root lockfile to build the web and API workspaces. See the [README](../README.md) for installation, validation and startup commands. The Phase 02 liveness check has no external dependencies.
+Use the pinned Node and npm versions and root lockfile to build the web and API workspaces. See the [README](../README.md) for installation, validation and startup commands. The liveness check has no external dependencies. The signed-in workflow requires Supabase Auth and a migrated PostgreSQL database.
 
 Configure the API port and allowed web origin at runtime. Vite forwards `/api` to the local API in development. For separate production hosts, set the full `VITE_API_BASE_URL` before building and set `WEB_ORIGIN` to the deployed frontend's exact origin.
 
-For later authentication and database phases, use local PostgreSQL and an isolated Supabase development project or CLI stack. Provision a dedicated development admin, test MFA, and configure private storage within that environment. Keep privileged credentials in the API or migration process and make sure direct and pooled database URLs target the same environment. See [.env.example](../.env.example) for the planned variables.
+For development, use local PostgreSQL and an isolated Supabase project or CLI stack. Provision a dedicated development admin, test MFA, and configure private storage within that environment. Keep privileged credentials in the API or migration process and make sure direct and pooled database URLs target the same environment. See [.env.example](../.env.example) and the [provisioning guide](authentication.md).
 
 ## Proposed production services
 

@@ -1,6 +1,11 @@
 # Testing strategy
 
-Run `npm test` for the current Vitest unit and Supertest HTTP coverage. It checks shared response validation, API environment validation, liveness, CORS, and the structured 404 response. Run `npm run test:e2e` with Chromium installed to check live API connection and retry, Colombo month boundaries and filter persistence, keyboard operation of the mobile drawer, table search and viewport containment, and saved and system theme behavior. The [README](../README.md) covers browser setup.
+Run `npm test` for the current Vitest unit and Supertest HTTP coverage. It checks shared response validation, API environment validation, liveness, CORS, the structured 404 response, and authentication and MFA enforcement. Run `npm run test:e2e` with Chromium installed to check live API connection and retry, Colombo month boundaries and filter persistence, keyboard operation of the mobile drawer, table search and viewport containment, and saved and system theme behavior. The [README](../README.md) covers browser setup.
+
+## Tests with isolated services
+
+- Run `npm run db:migrate` against a fresh PostgreSQL database, rerun it to verify repeatability, and apply the runtime grants. Set `FUEL_FEET_TEST_DATABASE_URL` to the isolated migration-owner connection and run `npm run test:db`. This test switches to the runtime role and rolls back its synthetic fixtures.
+- Provision a fresh administrator in a disposable Supabase project or local service using the [authentication guide](authentication.md). Export the web and API Supabase variables and the runtime `DATABASE_URL`. Set `FUEL_FEET_AUTH_E2E=true`, `FUEL_FEET_AUTH_E2E_EMAIL` and `FUEL_FEET_AUTH_E2E_PASSWORD` securely in the test process and run `npm run test:e2e`. This exercises enrollment, return to a protected deep link, sign-out and a subsequent authenticator challenge. Provision a fresh fixture before rerunning because enrollment changes the test account.
 
 ## Planned coverage
 

@@ -1,10 +1,21 @@
+import { createSupabaseVerifier } from './auth.js';
+import { createDatabase } from './database.js';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { logger } from './logger.js';
 
 function start() {
   const config = loadConfig(process.env);
-  const server = createApp(config).listen(config.port, '0.0.0.0', () => {
+  const db = config.databaseUrl ? createDatabase(config.databaseUrl) : undefined;
+  const auth = db && config.supabase ? {
+    verify: createSupabaseVerifier(config.supabase.url, config.supabase.key),
+    findAdmin: db.findAdmin,
+  } : undefined;
+  const server = createApp({
+    webOrigin: config.webOrigin,
+    auth,
+    databaseReady: db?.checkReady,
+  }).listen(config.port, '0.0.0.0', () => {
     logger.info({ port: config.port }, 'API listening');
   });
 
@@ -14,7 +25,8 @@ function start() {
   });
 
   function shutdown() {
-    server.close((error) => {
+    server.close(async (error) => {
+      await db?.close().catch(() => { process.exitCode = 1; });
       if (error) {
         logger.error('API shutdown failed');
         process.exitCode = 1;
