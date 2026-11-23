@@ -1,0 +1,52 @@
+name: Verify application
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: fuel_feet_test
+          POSTGRES_USER: fixture_owner
+          POSTGRES_PASSWORD: fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixture_owner -d fuel_feet_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DIRECT_DATABASE_URL: postgresql://fixture_owner:fixture_only@127.0.0.1:5432/fuel_feet_test
+      FUEL_FEET_TEST_DATABASE_URL: postgresql://fixture_owner:fixture_only@127.0.0.1:5432/fuel_feet_test
+      FUEL_FEET_TEST_RUNTIME_URL: postgresql://fixture_runtime:fixture_runtime_only@127.0.0.1:5432/fuel_feet_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run db:migrate
+      - name: Install test role permissions
+        env:
+          DB_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U fixture_owner -d fuel_feet_test -c \
+            "CREATE ROLE fuel_feet_runtime NOLOGIN; CREATE ROLE fixture_runtime LOGIN PASSWORD 'fixture_runtime_only' IN ROLE fuel_feet_runtime;"
+          docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U fixture_owner -d fuel_feet_test < apps/api/drizzle/runtime-grants.sql
+      - run: npm run test:db
+      - run: npm run test:fleet
+      - run: npm run build
+      - run: npm audit
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

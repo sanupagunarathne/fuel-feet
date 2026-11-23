@@ -4,7 +4,7 @@ Fuel Feet is a planned web application for a Sri Lankan fuel transportation busi
 
 ## Project status
 
-Phases 04 and 05 add Supabase sign-in with TOTP, server-side administrator authorization, and the PostgreSQL schema. The workspace still displays clearly labeled sample figures while business record entry is being built. [Implementation checklist](docs/implementation-checklist.md)
+The signed-in workspace records vehicles, crew, trip sheets, expenses, and salary payments. PostgreSQL feeds the dashboard and reports, with PDF and Excel exports, an audit trail, and private document attachments. Demo mode shows read-only sample figures. [Implementation checklist](docs/implementation-checklist.md)
 
 ## Local development
 
@@ -48,4 +48,4 @@ Run `npx playwright install chromium` once, then `npm run test:e2e`. Alternative
 | [Testing](docs/testing.md) | Unit, integration, and browser acceptance scenarios |
 | [Implementation checklist](docs/implementation-checklist.md) | Milestones and completion criteria |
 
-See [AGENTS.md](AGENTS.md) for coding rules and [.env.example](.env.example) for active and planned configuration names.
+See the [deployment guide](docs/deployment.md) for release requirements, including approval of financial policy, hosting and backup arrangements. See [AGENTS.md](AGENTS.md) for coding rules and [.env.example](.env.example) for active and planned configuration names.

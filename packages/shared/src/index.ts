@@ -23,3 +23,5 @@ export const adminProfileSchema = z.object({
 });
 
 export type AdminProfile = z.infer<typeof adminProfileSchema>;
+
+export * from './fleet.js';

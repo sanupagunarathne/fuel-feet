@@ -55,3 +55,7 @@ For the proposed payment model, record the date money was paid and the earnings 
 Build monthly salary balances from employees with earnings or applied payments that month. A payment still appears when a later correction removes all eligible trips. Use whole earnings months for balance and status filters. Custom trip-date ranges can show earned amounts without a balance, since payments are allocated by month.
 
 Vehicle-filtered salary views can show attributed earnings and counts. Payments, balance, and status apply to the full employee and month because no vehicle allocation rule has been confirmed. The UI should clearly scope or hide those values when filtered by vehicle.
+
+## Configuring the approved basis
+
+For an isolated test environment, set `ALLOW_PROVISIONAL_FINANCE=true` on the API to test gross revenue and half-up calculations. The production process ignores this switch. The deployment operator records the owner's approved basis and increments the policy revision as part of the release process. The settings screen shows policy status. A corrected trip uses its existing policy version and snapshots for unchanged crew. A substitute uses their configured default rate at the time of the correction.

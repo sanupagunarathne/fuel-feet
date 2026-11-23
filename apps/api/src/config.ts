@@ -16,6 +16,7 @@ const configSchema = z.object({
     .optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
+  DOCUMENT_MAX_BYTES: z.coerce.number().int().min(1000).max(20_971_520).optional(),
 });
 
 export function loadConfig(environment: NodeJS.ProcessEnv) {
@@ -24,6 +25,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv) {
     SUPABASE_URL: environment.SUPABASE_URL || undefined,
     SUPABASE_PUBLISHABLE_KEY: environment.SUPABASE_PUBLISHABLE_KEY || undefined,
     DATABASE_URL: environment.DATABASE_URL || undefined,
+    DOCUMENT_MAX_BYTES: environment.DOCUMENT_MAX_BYTES || undefined,
   });
   if (!result.success) {
     const names = result.error.issues.map((issue) => issue.path.join('.'));
@@ -46,5 +48,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv) {
     port, webOrigin,
     ...(authUrl && authKey ? { supabase: { url: authUrl, key: authKey } } : {}),
     ...(databaseUrl ? { databaseUrl } : {}),
+    ...(result.data.DOCUMENT_MAX_BYTES ? { maxDocumentBytes: result.data.DOCUMENT_MAX_BYTES } : {}),
   };
 }

@@ -20,7 +20,7 @@ createRoot(root).render(
     <QueryClientProvider client={new QueryClient()}>
       <BrowserRouter>
         <Suspense fallback={<main className="auth-screen"><p role="status">Loading Fuel Feet…</p></main>}>
-          <AuthGate>{(account) => <App account={account} />}</AuthGate>
+          <AuthGate>{(account, token) => <App account={account} token={token} />}</AuthGate>
         </Suspense>
       </BrowserRouter>
     </QueryClientProvider>

@@ -50,7 +50,7 @@ function AuthScreen({ title, children }: { title: string; children: ReactNode })
   );
 }
 
-export function AuthGate({ children }: { children: (account?: ReactNode) => ReactNode }) {
+export function AuthGate({ children }: { children: (account?: ReactNode, accessToken?: string) => ReactNode }) {
   const [state, setState] = useState<{ session: Session | null; revision: number }>();
   const [logout, setLogout] = useState<'idle' | 'pending' | 'error'>('idle');
   const location = useLocation();
@@ -133,5 +133,5 @@ export function AuthGate({ children }: { children: (account?: ReactNode) => Reac
     return <AuthScreen title="Two-factor verification"><MfaForm client={auth} />{signOutControl}</AuthScreen>;
   }
   if (authPage) return <Navigate to={returnTo} replace />;
-  return children(signOutControl);
+  return children(signOutControl, session.access_token);
 }
