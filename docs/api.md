@@ -2,7 +2,7 @@
 
 All routes are under `/api`. Health responses expose service status only. Every business, export, and attachment route requires a verified Supabase identity, MFA assurance, and the relevant server-side permission.
 
-Phase 02 implements `GET /health`, which reports API liveness with `{"status":"ok"}`. The readiness endpoint and business routes below are planned for later milestones.
+Implemented endpoints are `GET /health`, `GET /ready` and `GET /me`. Readiness covers migrated database access and Auth configuration. `/me` returns the enabled administrator ID and role after bearer and MFA verification. Business endpoints are planned.
 
 | Module | Method and path | Behavior |
 | --- | --- | --- |

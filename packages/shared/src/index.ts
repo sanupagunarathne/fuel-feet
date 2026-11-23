@@ -16,3 +16,10 @@ export const apiErrorResponseSchema = z.object({
 });
 
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+
+export const adminProfileSchema = z.object({
+  id: z.uuid(),
+  role: z.literal('ADMIN'),
+});
+
+export type AdminProfile = z.infer<typeof adminProfileSchema>;

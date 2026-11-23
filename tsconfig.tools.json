@@ -7,6 +7,7 @@
   },
   "include": [
     "apps/web/vite.config.ts",
+    "apps/api/drizzle.config.ts",
     "packages/shared/src/**/*.test.ts",
     "vitest.config.ts",
     "playwright.config.ts",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, NavLink, Route, Routes, useLocation, useSearchParams } from 'react-router';
 import {
   ChartColumnIncreasing, ChevronRight, ClipboardList, FlaskConical, Fuel, LayoutDashboard,
@@ -50,7 +51,7 @@ function Navigation({ search, onNavigate }: { search: string; onNavigate?: () =>
   );
 }
 
-export function App() {
+export function App({ account }: { account?: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const { pathname, search } = useLocation();
@@ -126,13 +127,16 @@ export function App() {
             <Route path="/" element={<Dashboard period={period} search={search} />} />
             {recordPages.map((page) => <Route key={page} path={`/${page}`} element={<Records key={page} page={page} period={period} />} />)}
             <Route path="/settings" element={
-              <section className="panel settings-panel">
-                <div>
-                  <h2>Appearance</h2>
-                  <p className="panel-subtitle">Choose a theme for this browser.</p>
-                </div>
-                <ThemeSelect theme={theme} onChange={setTheme} />
-              </section>
+              <div className="grid gap-4">
+                <section className="panel settings-panel">
+                  <div>
+                    <h2>Appearance</h2>
+                    <p className="panel-subtitle">Choose a theme for this browser.</p>
+                  </div>
+                  <ThemeSelect theme={theme} onChange={setTheme} />
+                </section>
+                {account && <section className="panel settings-panel"><h2>Account</h2>{account}</section>}
+              </div>
             } />
             <Route path="*" element={<Link className="text-link min-h-11" to="/">Return to dashboard</Link>} />
           </Routes>
