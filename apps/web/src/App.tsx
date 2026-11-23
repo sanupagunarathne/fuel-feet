@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, Route, Routes, useLocation, useSearchParams } from 'react-router';
 import {
@@ -9,12 +9,20 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { Modal } from './components/Modal';
 import { PeriodPicker } from './components/PeriodPicker';
 import { ThemeSelect } from './components/ThemeSelect';
-import { Button } from './components/ui';
+import { Button, Feedback } from './components/ui';
 import { currentPeriod, isPeriod } from './lib/period';
 import { useTheme } from './lib/theme';
 import { Dashboard } from './pages/Dashboard';
 import { Records } from './pages/Records';
 import type { RecordPage } from './pages/Records';
+
+import { FleetToken } from './live/client';
+
+const LiveRecords = lazy(() => import('./live/LiveRecords').then(({ LiveRecords }) => ({ default: LiveRecords })));
+const LiveDashboard = lazy(() => import('./live/LiveDashboard').then(({ LiveDashboard }) => ({ default: LiveDashboard })));
+const LiveSalaries = lazy(() => import('./live/LiveSalaries').then(({ LiveSalaries }) => ({ default: LiveSalaries })));
+const LiveReports = lazy(() => import('./live/LiveReports').then(({ LiveReports }) => ({ default: LiveReports })));
+const LiveSettings = lazy(() => import('./live/LiveSettings').then(({ LiveSettings }) => ({ default: LiveSettings })));
 
 const sections = [
   { path: '/', label: 'Dashboard', Icon: LayoutDashboard, period: true },
@@ -51,7 +59,7 @@ function Navigation({ search, onNavigate }: { search: string; onNavigate?: () =>
   );
 }
 
-export function App({ account }: { account?: ReactNode }) {
+export function App({ account, token }: { account?: ReactNode; token?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const { pathname, search } = useLocation();
@@ -60,6 +68,9 @@ export function App({ account }: { account?: ReactNode }) {
   const label = section?.label ?? 'Page not found';
   const periodParam = params.get('period');
   const period = isPeriod(periodParam) ? periodParam : currentPeriod();
+  const navigationParams = new URLSearchParams(search);
+  navigationParams.delete('entry');
+  const navigationSearch = navigationParams.toString();
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
@@ -76,18 +87,19 @@ export function App({ account }: { account?: ReactNode }) {
   }, [label]);
 
   return (
+    <FleetToken.Provider value={token ?? ''}>
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to content</a>
       <aside className="desktop-sidebar">
         <div className="sidebar-top"><Brand /></div>
-        <Navigation search={search} />
+        <Navigation search={navigationSearch} />
       </aside>
       <Modal open={menuOpen} onClose={closeMenu} label="Navigation" drawer>
         <div className="sidebar-top">
           <Brand />
           <Button variant="icon" aria-label="Close navigation" onClick={closeMenu}><X size={20} aria-hidden="true" /></Button>
         </div>
-        <Navigation search={search} onNavigate={closeMenu} />
+        <Navigation search={navigationSearch} onNavigate={closeMenu} />
       </Modal>
       <div className="workspace">
         <header className="top-bar">
@@ -109,6 +121,8 @@ export function App({ account }: { account?: ReactNode }) {
               <h1>{label}</h1>
               {section?.path === '/' && <p>Fleet finances and trip activity</p>}
             </div>
+            <div className="flex flex-wrap gap-2">
+            {token && section?.path !== '/trips' && <Link className="button button--primary" to={`/trips?period=${period}&entry=new`}>Quick add trip</Link>}
             {section && 'period' in section && (
               <PeriodPicker period={period} onChange={(value) => {
                 const next = new URLSearchParams(params);
@@ -116,16 +130,22 @@ export function App({ account }: { account?: ReactNode }) {
                 setParams(next);
               }} />
             )}
+            </div>
           </div>
-          {section && section.path !== '/settings' && (
+          {!token && section && section.path !== '/settings' && (
             <div className="demo-notice">
               <FlaskConical size={16} aria-hidden="true" />
               <p><strong>Demonstration data</strong><span> · </span> Sample figures and records</p>
             </div>
           )}
+          <Suspense fallback={<Feedback kind="loading" title="Loading workspace" />}>
           <Routes>
-            <Route path="/" element={<Dashboard period={period} search={search} />} />
-            {recordPages.map((page) => <Route key={page} path={`/${page}`} element={<Records key={page} page={page} period={period} />} />)}
+            <Route path="/" element={token ? <LiveDashboard period={period} /> : <Dashboard period={period} search={search} />} />
+            {recordPages.map((page) => <Route key={page} path={`/${page}`} element={!token
+              ? <Records key={page} page={page} period={period} />
+              : page === 'reports' ? <LiveReports key={search} period={period} />
+              : page === 'salaries' ? <LiveSalaries key={search} period={period} />
+              : <LiveRecords key={`${page}:${period}:${params.get('vehicleId') ?? ''}`} page={page} period={period} />} />)}
             <Route path="/settings" element={
               <div className="grid gap-4">
                 <section className="panel settings-panel">
@@ -135,13 +155,16 @@ export function App({ account }: { account?: ReactNode }) {
                   </div>
                   <ThemeSelect theme={theme} onChange={setTheme} />
                 </section>
+                {token && <LiveSettings period={period} />}
                 {account && <section className="panel settings-panel"><h2>Account</h2>{account}</section>}
               </div>
             } />
             <Route path="*" element={<Link className="text-link min-h-11" to="/">Return to dashboard</Link>} />
           </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
+    </FleetToken.Provider>
   );
 }

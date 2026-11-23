@@ -1,4 +1,5 @@
 import { createSupabaseVerifier } from './auth.js';
+import { supabaseStorage } from './fleet/documents.js';
 import { createDatabase } from './database.js';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
@@ -14,6 +15,12 @@ function start() {
   const server = createApp({
     webOrigin: config.webOrigin,
     auth,
+    db: db?.db,
+    storage: config.supabase && process.env.SUPABASE_STORAGE_KEY
+      ? supabaseStorage(config.supabase.url, process.env.SUPABASE_STORAGE_KEY, process.env.SUPABASE_DOCUMENT_BUCKET || 'fuel-feet-documents')
+      : undefined,
+    maxDocumentBytes: config.maxDocumentBytes,
+    allowProvisional: process.env.NODE_ENV !== 'production' && process.env.ALLOW_PROVISIONAL_FINANCE === 'true',
     databaseReady: db?.checkReady,
   }).listen(config.port, '0.0.0.0', () => {
     logger.info({ port: config.port }, 'API listening');

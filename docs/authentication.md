@@ -22,6 +22,6 @@ Stage an owner MFA recovery procedure before rollout. Recovery requires a verifi
 
 ## Preview and readiness
 
-With no provider configuration, set `VITE_DEMO_MODE=true` to view the read-only sample workspace in Vite development. Configured authentication takes precedence and production builds ignore demo mode. Real business records will be backed by protected API endpoints in subsequent phases.
+With no provider configuration, set `VITE_DEMO_MODE=true` to view the read-only sample workspace in Vite development. Configured authentication takes precedence and production builds ignore demo mode. The signed-in workspace uses protected API endpoints for real business records.
 
 `GET /api/health` checks process liveness. `GET /api/ready` checks that Auth is configured and the runtime role can query the migrated profile table. Use a protected request during deployment smoke testing to verify connectivity to the identity service itself.

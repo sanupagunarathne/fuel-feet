@@ -7,7 +7,13 @@ Run `npm test` for the current Vitest unit and Supertest HTTP coverage. It check
 - Run `npm run db:migrate` against a fresh PostgreSQL database, rerun it to verify repeatability, and apply the runtime grants. Set `FUEL_FEET_TEST_DATABASE_URL` to the isolated migration-owner connection and run `npm run test:db`. This test switches to the runtime role and rolls back its synthetic fixtures.
 - Provision a fresh administrator in a disposable Supabase project or local service using the [authentication guide](authentication.md). Export the web and API Supabase variables and the runtime `DATABASE_URL`. Set `FUEL_FEET_AUTH_E2E=true`, `FUEL_FEET_AUTH_E2E_EMAIL` and `FUEL_FEET_AUTH_E2E_PASSWORD` securely in the test process and run `npm run test:e2e`. This exercises enrollment, return to a protected deep link, sign-out and a subsequent authenticator challenge. Provision a fresh fixture before rerunning because enrollment changes the test account.
 
-## Planned coverage
+## Fleet workflows
+
+Run `npm run test:fleet` with `FUEL_FEET_TEST_DATABASE_URL` and `FUEL_FEET_TEST_RUNTIME_URL` set to a disposable migrated database with runtime grants. It inserts synthetic records, races duplicate submissions, reconciles reports, reads the exported workbook, validates the PDF, and exercises private documents against an isolated storage adapter.
+
+To run the browser business workflow, also provision a second fresh administrator and set `FUEL_FEET_WORKFLOW_EMAIL`, `FUEL_FEET_WORKFLOW_PASSWORD` and `ALLOW_PROVISIONAL_FINANCE=true` in the isolated test process. Set `SUPABASE_STORAGE_KEY` and provision a private test bucket to cover browser upload and download. The browser test creates a vehicle, assigns crew, confirms a trip, records a toll, and compares the dashboard and report before downloading both formats. The test ends at a phone-sized viewport in dark mode.
+
+## Coverage plan
 
 Financial and business browser scenarios use deterministic synthetic records in an isolated test environment.
 

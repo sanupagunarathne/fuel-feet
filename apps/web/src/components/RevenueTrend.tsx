@@ -13,7 +13,7 @@ export default function RevenueTrend({ trend }: { trend: RevenuePoint[] }) {
           <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="4 4" />
           <XAxis dataKey="month" axisLine={false} tickLine={false} tickMargin={11}
             tick={{ fill: 'var(--muted)', fontSize: 12 }} />
-          <YAxis axisLine={false} tickLine={false} tickMargin={7} width={42} tickCount={5} domain={[0, 2000000]}
+          <YAxis axisLine={false} tickLine={false} tickMargin={7} width={42} tickCount={5} domain={[0, 'auto']}
             tickFormatter={(value: number) => axisCurrency.format(value)}
             tick={{ fill: 'var(--muted)', fontSize: 12 }} />
           <Tooltip formatter={(value) => [lkr(String(Math.round(Number(value) * 100))), 'Revenue']}

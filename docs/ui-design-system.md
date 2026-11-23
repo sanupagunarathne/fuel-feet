@@ -19,7 +19,7 @@ Verify text and control contrast using actual foreground and background pairs. U
 
 ## Page structure
 
-Phase 03 provides the dashboard and read-only sample views for vehicles, trips, employees, salaries, expenses and reports. Settings provides working appearance controls. The selected reporting month travels in the URL. Accounts and record mutations arrive in their respective milestones.
+The workspace provides signed-in record entry, an operational dashboard and reports. The selected reporting month travels in the URL. Explicit development demo mode shows read-only, labeled sample views.
 
 | Route | Page and principal interactions |
 | --- | --- |

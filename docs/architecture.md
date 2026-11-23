@@ -11,7 +11,7 @@ packages/shared  Zod validation and serializable TypeScript contracts
 docs             Requirements, decisions, and operating procedures
 ```
 
-The web app uses TanStack Query and the shared Zod contract for Express liveness. React Router, Lucide, and Recharts support the Phase 03 shell and sample data views. The fixtures are confined to the frontend and carry a demonstration label in the affected views. Supabase Auth and PostgreSQL are integrated. Later milestones add business forms and private document storage. The proposed hosts are Vercel for the web app, a managed Node host for Express, and Supabase for PostgreSQL, Auth, and Storage.
+The web app uses TanStack Query and the shared Zod contract for Express liveness. React Router, Lucide and Recharts support the workspace. Live views use the authenticated business API. The read-only fixtures are available in explicit development demo mode. Supabase Auth, PostgreSQL and private Supabase Storage support the live workflow. The proposed hosts are Vercel for the web app, a managed Node host for Express, and Supabase for PostgreSQL, Auth, and Storage.
 
 | Layer | Responsibility |
 | --- | --- |
