@@ -5,7 +5,7 @@ export type Option = { value: string; label: string };
 export type Field = {
   name: string;
   label: string;
-  kind?: 'text' | 'textarea' | 'date' | 'month' | 'number' | 'money' | 'select' | 'boolean';
+  kind?: 'text' | 'textarea' | 'date' | 'month' | 'number' | 'money' | 'decimal' | 'select' | 'boolean';
   optional?: boolean;
   options?: Option[];
   initial?: string;
@@ -32,7 +32,6 @@ export const employeeFields: Field[] = [
   { name: 'fullName', label: 'Full name' },
   { name: 'role', label: 'Crew role', kind: 'select', options: roles },
   { name: 'phone', label: 'Contact number', optional: true },
-  { name: 'defaultRateBps', label: 'Salary rate (%)', kind: 'money' },
   { name: 'active', label: 'Active employee', kind: 'boolean', initial: 'true' }, notes,
 ];
 export const distributorFields: Field[] = [
@@ -60,11 +59,11 @@ export function recordPayload(fields: Field[], values: Record<string, string>) {
     const value = values[name]?.trim() ?? '';
     if (kind === 'boolean') return [name, value === 'true'];
     if (optional && !value) return [name, null];
-    if (name === 'defaultRateBps') {
-      if (!/^\d{1,3}(\.\d{1,2})?$/.test(value)) throw new Error('Enter a salary rate with up to two decimal places.');
-      const [whole, fraction = ''] = value.split('.');
-      return [name, Number(whole) * 100 + Number(fraction.padEnd(2, '0'))];
-    }
     return [name, kind === 'number' ? Number(value) : value];
   }));
+}
+
+export function employeeLabel(employee: Entity) {
+  const name = String(employee.fullName);
+  return employee.assignedVehicles ? `${employee.assignedVehicles} - ${label(String(employee.role))} (${name})` : name;
 }

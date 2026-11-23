@@ -22,6 +22,7 @@ Readiness covers migrated database access and Auth configuration. `/me` returns 
 | Reports | `GET /reports/:kind` | `vehicle-profit`, `fleet-profit`, `employee-earnings`, `employee-statement`, `salary-payments`, `vehicle-trips`, `vehicle-expenses`, `expense-breakdown` |
 | Attachments | `GET/POST /trips/:id/attachments`, `GET/POST /expenses/:id/attachments`, `GET /attachments/:id/download` | Validated multipart upload and authorized download |
 | Audit | `GET /audit` | Paginated administrator view of immutable audit events |
+| Rates | `GET /rates`, `PUT /rates` | View and schedule the shared IOC tariff and crew rates by effective month |
 | Settings | `GET/PATCH /settings` | View and update business and report settings with audit |
 
 ## Request and response conventions
@@ -35,8 +36,8 @@ Readiness covers migrated database access and Auth configuration. `/me` returns 
 
 ## Financial mutation bodies
 
-- Create a draft with `POST /trips` and the trip details. Edit it with `PATCH /trips/:id` and `{ version, trip }`.
+- Create a draft with `POST /trips`, the trip details and `loadedDistanceKm` as a decimal string. The server calculates the revenue and crew pay with the applicable rate schedule. Edit it with `PATCH /trips/:id` and `{ version, trip }`.
 - Preview a stored draft with `POST /trips/:id/preview` and an empty object. Confirm it with `{ version, preview }`, where `preview` is the digest returned by the server. Confirmation returns a conflict if the applicable calculation changed while it was under review.
 - For an audited correction, submit `{ trip }` to the preview route, then submit `{ version, reason, trip, preview }` to the correction route. Void a confirmed trip or expense with `{ version, reason }`.
-- Correct an expense with `{ version, reason, expense }`. Reverse a payment with `{ reason }`. A replacement is a separate payment with `replacesId`.
+- Correct an expense with `{ version, reason, expense }`. Record a salary advance with `advance: true` on `POST /salary-payments`. Its earnings month must match the payment date. Reverse a payment or advance with `{ reason }`. A replacement is a separate payment with `replacesId`.
 - Upload a single `file` field with multipart form data. Documents are deduplicated by parent and checksum. Storage downloads require administrator access and only return finalized attachments.

@@ -1,5 +1,31 @@
 # Financial rules
 
+## Confirmed trip calculation
+
+Owner clarification recorded on 23 November 2026. New trips use this distance-based calculation. Historical percentage-based records retain their original calculation and snapshots.
+
+| Output | Calculation |
+| --- | --- |
+| Trip revenue | Loaded one-way distance in km × 6,600 L × customer tariff in LKR per litre per km |
+| Driver earnings | Loaded one-way distance in km × driver rate in LKR per km |
+| Conductor earnings | Loaded one-way distance in km × conductor rate in LKR per km |
+
+The business owns the vehicle and is hired by IOC to transport fuel owned by IOC. The hire charge is transport revenue. Both customer billing and crew pay use the loaded outbound distance. The empty return leg earns no transport revenue or crew pay.
+
+Every trip is billed for 6,600 L. The trip form uses this fixed quantity automatically. Across all vehicles, the current standard rate is Rs. 45/km for every driver and Rs. 40/km for every conductor. For 150 km loaded outbound and 150 km empty on the return, billable distance is 150 km. The driver earns Rs. 6,750.00 and the conductor earns Rs. 6,000.00, for a total crew cost of Rs. 12,750.00. Transport revenue is `990,000 × tariff` in rupees. IOC uses one tariff in LKR per litre per kilometre across all vehicles and routes at any given time. The tariff is a shared, editable setting and can change over time. The driver and conductor rates are separate editable company-wide settings, without per-employee or per-vehicle overrides. Preserve distance, litres, applied tariff, applied crew rates, the actual crew, and calculated amounts on each confirmed trip so later rate and assignment changes preserve historical results.
+
+Record the full trip revenue. Record a highway toll as a separate expense only when incurred. Monthly profit subtracts earned crew costs and recorded vehicle expenses, including any tolls, from trip revenue.
+
+Keep a regular driver and conductor assigned to each vehicle. When an employee leaves, close their assignment and fill the vacant role with the replacement. Prior trips retain their actual crew.
+
+### Monthly rate changes
+
+Rate changes take effect on the first day of the new month in Asia/Colombo. Use the IOC tariff, driver rate, and conductor rate effective for the month the trip was driven, including trips entered later. For example, a November trip entered in December uses November's rates. Keep prior rate schedules and preserve the applied rates on confirmed trips.
+
+In **Settings → Rates**, the owner can enter the IOC tariff in LKR per litre per kilometre, see the current and scheduled rates, and save a change with its effective month. The database stores the IOC tariff as an exact decimal. Trip calculations use the effective schedule, and reports use the confirmed snapshots. Saving a rate change is available at any time and follows the monthly effective-date rule above.
+
+The real IOC tariff still needs to be checked against a trip sheet. Leave it unset until confirmed, show a clear message when a trip has no applicable tariff, and block confirmation until the required rate exists. The implementation supports distance to 3 decimal places and tariff to 12 decimal places. It rounds each calculated amount half up to the nearest cent using exact arithmetic. Verify the input precision and final rounding against a real trip sheet before rollout.
+
 ## Amounts, dates, and rates
 
 Store LKR as integer cents. Accept monetary input as plain decimal strings with zero to two decimal places and convert once on the server. Reject invalid precision, signs for nonnegative amounts, exponents, and values above the approved field limit. Use exact integer or decimal arithmetic throughout authoritative calculations. Return minor units as decimal integer strings in JSON, including signed totals. Use `Rs. 50,000.00` in the UI.
@@ -8,10 +34,10 @@ For development, represent rates in basis points, with `10.00%` stored as `1000`
 
 Use strict ISO calendar dates (`YYYY-MM-DD`) for trip, expense, and payment dates. Interpret the default month and display timestamps in Asia/Colombo. Query date-only ranges with an inclusive start and exclusive end. An inclusive end selected in the UI is advanced by one calendar day before querying.
 
-## Earnings
+## Legacy percentage model
 
 - A draft holds selected crew, revenue and proposed basis. Preview uses the server engine and is advisory until confirmation.
-- Gross revenue is a **provisional development assumption**. The proposed adjusted mode takes a validated basis amount and a reason. Production confirmation requires an approved basis and rate policy.
+- Historical records keep their original gross or adjusted revenue basis.
 - For each role, provisional earnings in cents equal `roundHalfUp(basisCents × rateBps ÷ 10000)`. Round once per employee per trip, then sum. The proposed rounding policy requires owner approval.
 - Confirmation revalidates the crew and applicable settings. Persist the actual employees, basis type and amount, policy version, exact rates, rounding mode, and earnings atomically. If inputs used by the preview changed, return updated figures for review.
 - A confirmed correction requires a reason, records before and after values, and preserves untouched rate and policy snapshots. If actual crew or basis needs to change, show the revised entitlement before applying it and document how replacement rates are selected. A void retains the original trip and earnings for audit and removes the trip and earnings from current reports. Closed-month or published statement restatement policy remains open.
@@ -46,6 +72,12 @@ Use these rules for dashboard cards, trip and expense comparisons, vehicle histo
 
 Treat the active vehicle card as a current-status count for the selected fleet or vehicle. Label it accordingly. Performance comparisons use the selected reporting period and show whether a vehicle had any activity.
 
+## Employee advances
+
+Record each advance with the employee, date paid, and amount. Show dated entries and the total advances taken by each employee for the selected month. Preserve the employee identity even when their vehicle or role label changes.
+
+The remaining salary before final payment is the month's earned crew pay less new advances and any brought-forward advance balance, with a minimum of zero before other salary payments. For example, Rs. 60,000.00 earned and Rs. 10,000.00 advanced leaves Rs. 50,000.00 before any other salary payments. Apply each advance once. Monthly operating profit uses full earned crew costs, so advances do not add a second expense. When advances exceed monthly earnings, carry the excess forward as an employee advance balance and deduct it from the next month's salary. For example, Rs. 40,000 earned and Rs. 45,000 advanced leaves Rs. 0 to pay that month and Rs. 5,000 to carry forward. Show the brought-forward balance separately from new advances so each payment is applied once.
+
 ## Worked earnings and payments
 
 Sum confirmed entitlements for actual crew across vehicles by trip month. Count eligible trips once per employee. Keep profit based on earned salary costs.
@@ -56,6 +88,6 @@ Build monthly salary balances from employees with earnings or applied payments t
 
 Vehicle-filtered salary views can show attributed earnings and counts. Payments, balance, and status apply to the full employee and month because no vehicle allocation rule has been confirmed. The UI should clearly scope or hide those values when filtered by vehicle.
 
-## Configuring the approved basis
+## Historical percentage records
 
-For an isolated test environment, set `ALLOW_PROVISIONAL_FINANCE=true` on the API to test gross revenue and half-up calculations. The production process ignores this switch. The deployment operator records the owner's approved basis and increments the policy revision as part of the release process. The settings screen shows policy status. A corrected trip uses its existing policy version and snapshots for unchanged crew. A substitute uses their configured default rate at the time of the correction.
+The migration preserves existing confirmed percentage-based earnings. To confirm a draft from the earlier version, first enter its loaded one-way distance and review the new calculation.

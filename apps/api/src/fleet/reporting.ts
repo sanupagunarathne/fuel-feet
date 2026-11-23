@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { expenseCategories } from '@fuel-feet/shared';
 import type { Router } from 'express';
@@ -6,6 +6,7 @@ import { companySettings, employees, salaryPayments, tripEarnings, tripSheets, v
 import { dateRange, filterQuery, id, invalid, monthStart, period, send } from './common.js';
 import type { Transaction } from './common.js';
 import type { Database } from './common.js';
+import { carryAdvances } from './advances.js';
 import { renderExport } from './exports.js';
 
 type Scope = z.infer<typeof filterQuery>;
@@ -80,25 +81,50 @@ async function salaries(db: Reader, q: Scope, range: Range) {
     trips: sql<number>`count(*)::integer` }).from(tripEarnings).innerJoin(tripSheets, eq(tripSheets.id, tripEarnings.tripId))
     .where(and(tripFilter(range, q), eq(tripSheets.status, 'CONFIRMED'),
       q.employeeId ? eq(tripEarnings.employeeId, q.employeeId) : undefined)).groupBy(tripEarnings.employeeId);
-  const paid = q.vehicleId || !range.month ? [] : await db.select({ employeeId: salaryPayments.employeeId, amount: total(salaryPayments.amountCents) })
-    .from(salaryPayments).where(and(eq(salaryPayments.earningsMonth, range.from), eq(salaryPayments.status, 'RECORDED'),
-      q.employeeId ? eq(salaryPayments.employeeId, q.employeeId) : undefined)).groupBy(salaryPayments.employeeId);
+  const withPayments = !q.vehicleId && Boolean(range.month);
+  const employeeScope = q.employeeId ? eq(salaryPayments.employeeId, q.employeeId) : undefined;
+  const paid = withPayments ? await db.select({ employeeId: salaryPayments.employeeId, advance: salaryPayments.advance,
+    amount: total(salaryPayments.amountCents) }).from(salaryPayments)
+    .where(and(eq(salaryPayments.earningsMonth, range.from), eq(salaryPayments.status, 'RECORDED'), employeeScope))
+    .groupBy(salaryPayments.employeeId, salaryPayments.advance) : [];
+  const earlierAdvances = withPayments ? await db.select({ employeeId: salaryPayments.employeeId,
+    month: salaryPayments.earningsMonth, amount: total(salaryPayments.amountCents) }).from(salaryPayments)
+    .where(and(eq(salaryPayments.status, 'RECORDED'), eq(salaryPayments.advance, true),
+      lt(salaryPayments.earningsMonth, range.from), employeeScope))
+    .groupBy(salaryPayments.employeeId, salaryPayments.earningsMonth).orderBy(asc(salaryPayments.earningsMonth)) : [];
+  const earliest = earlierAdvances[0]?.month;
+  const tripMonth = sql<string>`to_char(${tripSheets.tripDate}, 'YYYY-MM') || '-01'`;
+  const earlierEarnings = earliest ? await db.select({ employeeId: tripEarnings.employeeId,
+    month: tripMonth, amount: total(tripEarnings.amountCents) }).from(tripEarnings)
+    .innerJoin(tripSheets, eq(tripEarnings.tripId, tripSheets.id)).where(and(
+      eq(tripSheets.status, 'CONFIRMED'), gte(tripSheets.tripDate, earliest), lt(tripSheets.tripDate, range.from),
+      q.employeeId ? eq(tripEarnings.employeeId, q.employeeId) : undefined,
+    )).groupBy(tripEarnings.employeeId, tripMonth) : [];
+  const broughtForward = carryAdvances(earlierEarnings, earlierAdvances);
   const names = await db.select({ id: employees.id, name: employees.fullName, role: employees.role })
     .from(employees).where(q.employeeId ? eq(employees.id, q.employeeId) : undefined).orderBy(asc(employees.fullName), asc(employees.id));
   const entitlements = new Map(earn.map((row) => [row.employeeId, row]));
-  const payments = new Map(paid.map((row) => [row.employeeId, BigInt(row.amount)]));
-  return names.filter((row) => entitlements.has(row.id) || payments.has(row.id)).map((row) => {
+  const payments = new Map(paid.filter((row) => !row.advance).map((row) => [row.employeeId, BigInt(row.amount)]));
+  const advances = new Map(paid.filter((row) => row.advance).map((row) => [row.employeeId, BigInt(row.amount)]));
+  return names.filter((row) => entitlements.has(row.id) || payments.has(row.id) || advances.has(row.id)
+    || (broughtForward.get(row.id) ?? 0n) > 0n).map((row) => {
     const earned = BigInt(entitlements.get(row.id)?.amount ?? 0);
-    const applied = q.vehicleId || !range.month ? null : payments.get(row.id) ?? 0n;
-    const balance = applied === null ? null : earned - applied;
-    const status = balance === null ? '—' : balance < 0n ? 'Credit' : balance === 0n ? 'Settled' : applied === 0n ? 'Unpaid' : 'Partial';
-    return { ...row, earned, applied, balance, status, trips: entitlements.get(row.id)?.trips ?? 0 };
+    const applied = withPayments ? payments.get(row.id) ?? 0n : null;
+    const advance = withPayments ? advances.get(row.id) ?? 0n : null;
+    const carriedIn = withPayments ? broughtForward.get(row.id) ?? 0n : null;
+    const afterAdvances = earned - (advance ?? 0n) - (carriedIn ?? 0n);
+    const carriedOut = withPayments ? (afterAdvances < 0n ? -afterAdvances : 0n) : null;
+    const balance = applied === null ? null : (afterAdvances < 0n ? 0n : afterAdvances) - applied;
+    const status = balance === null ? '—' : carriedOut && carriedOut > 0n ? 'Advance carried'
+      : balance < 0n ? 'Credit' : balance === 0n ? 'Settled' : balance === earned ? 'Unpaid' : 'Partial';
+    return { ...row, earned, applied, advance, carriedIn, carriedOut, balance, status, trips: entitlements.get(row.id)?.trips ?? 0 };
   });
 }
 
 async function salaryDetail(tx: Reader, q: Scope & { employeeId: string }, range: Range, limit: number, offset: number) {
   const [summary] = await salaries(tx, q, range);
   const trips = await tx.select({ reference: tripSheets.reference, date: tripSheets.tripDate,
+    loadedDistanceKm: tripSheets.loadedDistanceKm, ratePerKmCents: tripEarnings.ratePerKmCents,
     basisCents: tripSheets.basisCents, rateBps: tripEarnings.rateBps, amountCents: tripEarnings.amountCents, id: tripSheets.id })
     .from(tripEarnings).innerJoin(tripSheets, eq(tripSheets.id, tripEarnings.tripId)).where(and(
       tripFilter(range, q), eq(tripSheets.status, 'CONFIRMED'), eq(tripEarnings.employeeId, q.employeeId),
@@ -120,6 +146,7 @@ async function report(db: Reader, kind: ReportKind, q: Scope & { category?: type
   const range = period(q);
   const [settings] = await db.select({ name: companySettings.businessName }).from(companySettings);
   const base = { company: settings?.name ?? 'Fuel Feet', range, generatedAt: new Date().toISOString() };
+  const rupeeRate = (value: bigint) => `Rs. ${value / 100n}.${String(value % 100n).padStart(2, '0')} / km`;
   const moneyValue = (value: bigint | null) => value === null ? '—' : value.toString();
 
   switch (kind) {
@@ -136,8 +163,8 @@ async function report(db: Reader, kind: ReportKind, q: Scope & { category?: type
     case 'employee-earnings': {
       const data = await salaries(db, q, range);
       return { ...base, title: 'Employee earnings', columns: [{ label: 'Employee' }, { label: 'Role' }, { label: 'Trips' },
-        money('Earned'), money('Payments'), money('Balance'), { label: 'Status' }],
-      rows: data.map((row) => [row.name, label(row.role), row.trips, row.earned.toString(), moneyValue(row.applied), moneyValue(row.balance), row.status]) };
+        money('Earned'), money('Advance in'), money('New advances'), money('Salary paid'), money('Left to pay'), money('Advance out'), { label: 'Status' }],
+      rows: data.map((row) => [row.name, label(row.role), row.trips, row.earned.toString(), moneyValue(row.carriedIn), moneyValue(row.advance), moneyValue(row.applied), moneyValue(row.balance), moneyValue(row.carriedOut), row.status]) };
     }
     case 'employee-statement': {
       if (!q.employeeId || !range.month) invalid('Choose an employee and an earnings month.');
@@ -146,15 +173,18 @@ async function report(db: Reader, kind: ReportKind, q: Scope & { category?: type
       const [employee] = await db.select({ name: employees.fullName }).from(employees).where(eq(employees.id, q.employeeId));
       if (!employee) invalid('Choose an existing employee.');
       const rows: Amount[][] = [
-        ...details.trips.map((trip) => ['Trip', trip.date, trip.reference, moneyValue(trip.basisCents),
-          `${(trip.rateBps / 100).toFixed(2)}%`, trip.amountCents.toString(), '—']),
-        ...details.payments.map((payment) => [label(payment.status), payment.paidOn, payment.reference ?? '—',
-          '—', '—', '—', payment.amountCents.toString()]),
-        ['Total', '—', '—', '—', '—', moneyValue(details.summary?.earned ?? 0n), moneyValue(details.summary?.applied ?? null)],
-        ['Balance', '—', '—', '—', '—', '—', moneyValue(details.summary?.balance ?? null)],
+        ...details.trips.map((trip) => ['Trip', trip.date, trip.reference, trip.loadedDistanceKm ? `${trip.loadedDistanceKm} km` : '—', moneyValue(trip.basisCents),
+          trip.ratePerKmCents !== null ? rupeeRate(trip.ratePerKmCents) : `${((trip.rateBps ?? 0) / 100).toFixed(2)}%`, trip.amountCents.toString(), '—']),
+        ...details.payments.map((payment) => [payment.advance ? (payment.status === 'REVERSED' ? 'Advance reversed' : 'Advance') : label(payment.status), payment.paidOn, payment.reference ?? '—',
+          '—', '—', '—', '—', payment.amountCents.toString()]),
+        ['Total', '—', '—', '—', '—', '—', moneyValue(details.summary?.earned ?? 0n), moneyValue(details.summary?.applied ?? null)],
+        ['Advance brought forward', '—', '—', '—', '—', '—', '—', moneyValue(details.summary?.carriedIn ?? null)],
+        ['New advances', '—', '—', '—', '—', '—', '—', moneyValue(details.summary?.advance ?? null)],
+        ['Advance carried forward', '—', '—', '—', '—', '—', '—', moneyValue(details.summary?.carriedOut ?? null)],
+        ['Balance', '—', '—', '—', '—', '—', '—', moneyValue(details.summary?.balance ?? null)],
       ];
       return { ...base, title: `Salary statement · ${employee.name}`, columns: [
-        { label: 'Record' }, date('Date'), { label: 'Reference' }, money('Basis'), { label: 'Rate' }, money('Earned'), money('Paid / balance'),
+        { label: 'Record' }, date('Date'), { label: 'Reference' }, { label: 'Loaded distance' }, money('Legacy basis'), { label: 'Rate' }, money('Earned'), money('Paid / balance'),
       ], rows };
     }
     case 'salary-payments': {
@@ -166,9 +196,9 @@ async function report(db: Reader, kind: ReportKind, q: Scope & { category?: type
         )).orderBy(desc(salaryPayments.paidOn), asc(salaryPayments.id)).limit(maxDetails + 1);
       if (data.length > maxDetails) invalid('Narrow the report period to export up to 5,000 rows.');
       return { ...base, title: 'Salary payments', columns: [{ label: 'Employee' }, date('Payment date'), { label: 'Earnings month' },
-        money('Payment'), { label: 'Reference' }, { label: 'Status' }],
+        money('Payment'), { label: 'Reference' }, { label: 'Type' }, { label: 'Status' }],
       rows: data.map(({ payment, employee }) => [employee, payment.paidOn, payment.earningsMonth.slice(0, 7),
-        payment.amountCents.toString(), payment.reference ?? '—', label(payment.status)]) };
+        payment.amountCents.toString(), payment.reference ?? '—', payment.advance ? 'Advance' : 'Salary payment', label(payment.status)]) };
     }
     case 'vehicle-trips': {
       const data = await db.select({ trip: tripSheets, registration: vehicles.registration }).from(tripSheets)
@@ -176,8 +206,8 @@ async function report(db: Reader, kind: ReportKind, q: Scope & { category?: type
         .orderBy(desc(tripSheets.tripDate), asc(tripSheets.id)).limit(maxDetails + 1);
       if (data.length > maxDetails) invalid('Narrow the report period to export up to 5,000 rows.');
       return { ...base, title: 'Confirmed trip history', columns: [{ label: 'Trip sheet' }, date('Date'), { label: 'Vehicle' },
-        { label: 'Origin' }, { label: 'Destination' }, money('Revenue')],
-      rows: data.map(({ trip, registration }) => [trip.reference, trip.tripDate, registration, trip.origin ?? '—', trip.destination ?? '—', trip.revenueCents.toString()]) };
+        { label: 'Origin' }, { label: 'Destination' }, { label: 'Loaded km' }, { label: 'IOC tariff' }, money('Revenue')],
+      rows: data.map(({ trip, registration }) => [trip.reference, trip.tripDate, registration, trip.origin ?? '—', trip.destination ?? '—', trip.loadedDistanceKm ?? '—', trip.iocTariff ?? '—', trip.revenueCents.toString()]) };
     }
     case 'vehicle-expenses': {
       const data = await db.select({ expense: vehicleExpenses, registration: vehicles.registration }).from(vehicleExpenses)
@@ -232,7 +262,7 @@ export function reportRoutes(router: Router, db: Database) {
 
   router.get('/salaries', async (req, res) => {
     const q = filterQuery.extend({ role: z.enum(['DRIVER', 'CONDUCTOR']).optional(),
-      status: z.enum(['Credit', 'Settled', 'Unpaid', 'Partial']).optional() }).parse(req.query);
+      status: z.enum(['Credit', 'Settled', 'Unpaid', 'Partial', 'Advance carried']).optional() }).parse(req.query);
     if (q.status && q.vehicleId) invalid('Payment status is available for the full employee month.');
     const data = await db.transaction((tx) => salaries(tx, q, period(q, true)), { isolationLevel: 'repeatable read', accessMode: 'read only' });
     send(res, data.filter((row) => (!q.role || row.role === q.role) && (!q.status || row.status === q.status)));

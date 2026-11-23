@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Link } from 'react-router';
 import { ArrowUpRight, ChartNoAxesCombined, CircleDollarSign, ReceiptText, Truck, UsersRound } from 'lucide-react';
+import { DashboardDetails } from '../components/DashboardDetails';
 import { DataTable } from '../components/DataTable';
 import { Feedback } from '../components/ui';
 import { demoPeriod, demoSnapshots, demoTrips } from '../demo/fixtures';
@@ -49,53 +50,55 @@ export function Dashboard({ period, search }: { period: string; search: string }
           </section>
         ))}
       </div>
-      <div className="chart-grid">
-        <section className="panel chart-panel">
-          <div className="panel-header chart-heading">
-            <div>
-              <h2>Revenue trend</h2>
-              <p className="panel-subtitle">Confirmed trip revenue by month</p>
+      <DashboardDetails>
+        <div className="chart-grid">
+          <section className="panel chart-panel">
+            <div className="panel-header chart-heading">
+              <div>
+                <h2>Revenue trend</h2>
+                <p className="panel-subtitle">Confirmed trip revenue by month</p>
+              </div>
+              <span className="chart-unit">LKR</span>
             </div>
-            <span className="chart-unit">LKR</span>
-          </div>
-          <Suspense fallback={<div className="revenue-chart"><Feedback kind="loading" title="Loading revenue chart" /></div>}>
-            <RevenueTrend trend={trend} />
-          </Suspense>
-        </section>
-        <section className="panel expense-panel">
-          <div className="panel-header chart-heading"><div>
-            <h2>Expense breakdown</h2>
-            <p className="panel-subtitle">Vehicle costs by category</p>
-          </div></div>
-          <div className="expense-content">
-            <div className="expense-bar" aria-hidden="true">
-              {expenseCategories.map(({ label, color }, index) => (
-                <span key={label} style={{ background: color, flexGrow: Number(snapshot.categories[index]) }} />
-              ))}
+            <Suspense fallback={<div className="revenue-chart"><Feedback kind="loading" title="Loading revenue chart" /></div>}>
+              <RevenueTrend trend={trend} />
+            </Suspense>
+          </section>
+          <section className="panel expense-panel">
+            <div className="panel-header chart-heading"><div>
+              <h2>Expense breakdown</h2>
+              <p className="panel-subtitle">Vehicle costs by category</p>
+            </div></div>
+            <div className="expense-content">
+              <div className="expense-bar" aria-hidden="true">
+                {expenseCategories.map(({ label, color }, index) => (
+                  <span key={label} style={{ background: color, flexGrow: Number(snapshot.categories[index]) }} />
+                ))}
+              </div>
+              <ul className="expense-legend">
+                {expenseCategories.map(({ label, color }, index) => (
+                  <li key={label}>
+                    <span className="legend-dot" style={{ background: color }} aria-hidden="true" />
+                    <span>{label}</span>
+                    <strong>{lkr(snapshot.categories[index] ?? '0')}</strong>
+                  </li>
+                ))}
+              </ul>
+              <div className="fleet-note"><Truck size={17} aria-hidden="true" /> <span>{snapshot.vehicles} active vehicles</span></div>
             </div>
-            <ul className="expense-legend">
-              {expenseCategories.map(({ label, color }, index) => (
-                <li key={label}>
-                  <span className="legend-dot" style={{ background: color }} aria-hidden="true" />
-                  <span>{label}</span>
-                  <strong>{lkr(snapshot.categories[index] ?? '0')}</strong>
-                </li>
-              ))}
-            </ul>
-            <div className="fleet-note"><Truck size={17} aria-hidden="true" /> <span>{snapshot.vehicles} active vehicles</span></div>
-          </div>
-        </section>
-      </div>
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Recent trip sheets</h2>
-          <Link className="text-link min-h-11" to={{ pathname: '/trips', search }}>
-            View trip sheets <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
+          </section>
         </div>
-        <DataTable columns={tripColumns} rows={period === demoPeriod ? demoTrips : []} label="Recent trip sheets"
-          emptyTitle="No sample trip sheets for this period" />
-      </section>
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Recent trip sheets</h2>
+            <Link className="text-link min-h-11" to={{ pathname: '/trips', search }}>
+              View trip sheets <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+          <DataTable columns={tripColumns} rows={period === demoPeriod ? demoTrips : []} label="Recent trip sheets"
+            emptyTitle="No sample trip sheets for this period" />
+        </section>
+      </DashboardDetails>
     </div>
   );
 }

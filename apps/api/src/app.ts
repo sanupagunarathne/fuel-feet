@@ -15,11 +15,10 @@ import { FleetError } from './fleet/common.js';
 import type { Database } from './fleet/common.js';
 import { logger } from './logger.js';
 
-export function createApp({ webOrigin, auth, databaseReady, db, allowProvisional = false, storage, maxDocumentBytes }: {
+export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocumentBytes }: {
   webOrigin: string;
   auth?: AuthDependencies;
   db?: Database;
-  allowProvisional?: boolean;
   storage?: DocumentStorage;
   maxDocumentBytes?: number;
   databaseReady?: () => Promise<void>;
@@ -82,7 +81,7 @@ export function createApp({ webOrigin, auth, databaseReady, db, allowProvisional
     response.json(response.locals.admin);
   });
 
-  if (db) app.use('/api', accessLimiter, requireAdmin(auth), fleetRouter(db, allowProvisional, storage, maxDocumentBytes));
+  if (db) app.use('/api', accessLimiter, requireAdmin(auth), fleetRouter(db, storage, maxDocumentBytes));
 
   app.use((_request, response) => {
     response.status(404).json(apiErrorResponseSchema.parse({

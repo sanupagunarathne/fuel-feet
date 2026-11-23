@@ -1,0 +1,21 @@
+name: fuel-feet-local
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fuel_feet
+      POSTGRES_USER: fuel_feet_owner
+      POSTGRES_PASSWORD: ${FUEL_FEET_LOCAL_DB_OWNER_PASSWORD:?Set a local database password}
+    ports:
+      - "127.0.0.1:${FUEL_FEET_LOCAL_DB_PORT:-55433}:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "fuel_feet_owner", "-d", "fuel_feet"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  database:

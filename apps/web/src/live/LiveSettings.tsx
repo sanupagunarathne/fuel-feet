@@ -4,9 +4,10 @@ import { Button } from '../components/ui';
 import { EditDialog, EditorForm, QueryResult } from './components';
 import { inputValues, recordPayload, settingsFields } from './fields';
 import { useFleetMutation, useFleetQuery } from './client';
+import { LiveRates } from './LiveRates';
 import { LiveRecords } from './LiveRecords';
 
-type Settings = { businessName: string; contact: string | null; address: string | null; basis: string | null; policyApproved: boolean };
+type Settings = { businessName: string; contact: string | null; address: string | null };
 type Audit = { id: string; entityType: string; operation: string; createdAt: string; reason: string | null; before: unknown; after: unknown };
 
 export function LiveSettings({ period }: { period: string }) {
@@ -27,10 +28,10 @@ export function LiveSettings({ period }: { period: string }) {
         {data?.contact && <li className="whitespace-pre-wrap">{data.contact}</li>}
         {data?.address && <li className="whitespace-pre-wrap">{data.address}</li>}
         <li>Currency · LKR</li><li>Reporting time zone · Asia/Colombo</li>
-        <li>Salary policy · {data?.policyApproved ? `${data.basis === 'GROSS' ? 'Gross' : 'Adjusted'} basis, half-up rounding` : 'Awaiting owner approval'}</li>
       </ul>}</QueryResult>
       {notice && <p role="status" className="px-5 pb-3 text-sm">{notice}</p>}
     </section>
+    <LiveRates />
     <section><h2 className="mb-2 font-semibold">Distributors</h2><LiveRecords page="distributors" period={period} /></section>
     <section className="panel">
       <div className="panel-header"><h2>Audit history</h2><Button onClick={() => setAuditOpen(!auditOpen)}>{auditOpen ? 'Hide audit history' : 'Show audit history'}</Button></div>

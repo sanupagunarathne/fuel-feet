@@ -9,10 +9,11 @@ Use UUID primary keys for business records, PostgreSQL `DATE` for business dates
 | Employee | Full name, driver/conductor role, contact, default rate, status and notes. Has crew assignments, trip earnings and salary payments. Employee vehicle views read from assignments. |
 | VehicleCrewAssignment | Vehicle, employee, role, effective date range. Keep historical rows and prevent overlapping assignments for the same vehicle and role. Confirm whether an employee can be regularly assigned to several vehicles. |
 | Distributor | Canonical name and status. Optional issuer for trip sheets. Use it to identify the reference namespace once approved. |
-| TripSheet | Vehicle, actual driver and conductor, optional distributor, reference and normalized reference, trip date, route, revenue cents, basis policy and amount snapshot, notes, creator, status and version. |
-| TripEarning | Trip, employee, crew role, applied rate, amount cents and rounding mode. Unique per trip and role. Creation or recalculation commits with the trip. |
+| TripRateSchedule | First day of effective month, IOC tariff as an exact decimal, and driver and conductor cents per loaded kilometre. |
+| TripSheet | Vehicle, actual driver and conductor, optional distributor, reference, trip date, route, loaded distance, applied tariff and rate month, revenue cents, notes, creator, status and version. Legacy records retain the prior revenue basis. |
+| TripEarning | Trip, employee, crew role, applied cents per kilometre or legacy percentage rate, amount cents and rounding mode. Unique per trip and role. Creation or recalculation commits with the trip. |
 | VehicleExpense | Vehicle, optional related trip, business date, category, amount cents, description, status, actor and version. |
-| SalaryPayment | Employee, earnings month, actual payment date, positive amount cents, optional reference and notes, creator and status. Keep reversal metadata and replacement linkage if corrected. |
+| SalaryPayment | Employee, earnings month, actual payment date, salary or advance indicator, positive amount cents, optional reference and notes, creator and status. Keep reversal metadata and replacement linkage if corrected. |
 | DocumentAttachment | Exactly one trip or expense, object key, display filename, verified type, byte size, checksum, lifecycle state and uploader. Preserve attachment history on replacement. |
 | CompanySettings | Single-company configuration with business identity and contact, LKR, Asia/Colombo, report preferences and salary policy metadata with revision. |
 | AuditLog | Append-only actor, entity type and ID, operation, reason, timestamp, request ID, and allowlisted before/after values. Restrict direct access and include in backups. |

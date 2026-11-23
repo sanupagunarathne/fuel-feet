@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, ilike, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { crewInput, crewRoles, distributorInput, employeeInput, expenseCategories, expenseInput,
   paymentInput, reasonInput, settingsInput, vehicleInput, versionInput } from '@fuel-feet/shared';
@@ -29,7 +29,14 @@ export function recordsRoutes(router: Router, db: Database) {
   router.get('/employees', async (req, res) => {
     const q = searchQuery.parse(req.query);
     const term = searchTerm(q.search);
-    send(res, await db.select().from(employees).where(and(
+    const assignedVehicles = sql<string | null>`(
+      SELECT string_agg(v.registration, ', ' ORDER BY v.registration)
+      FROM fuel_feet.vehicle_crew_assignments a JOIN fuel_feet.vehicles v ON v.id = a."vehicleId"
+      WHERE a."employeeId" = employees.id AND v.active
+        AND a."startsOn" <= (now() AT TIME ZONE 'Asia/Colombo')::date
+        AND (a."endsBefore" IS NULL OR a."endsBefore" > (now() AT TIME ZONE 'Asia/Colombo')::date)
+    )`;
+    send(res, await db.select({ ...getTableColumns(employees), assignedVehicles }).from(employees).where(and(
       q.active ? eq(employees.active, q.active === 'true') : undefined,
       q.role ? eq(employees.role, q.role) : undefined,
       term ? ilike(employees.fullName, term) : undefined,
@@ -66,7 +73,7 @@ export function recordsRoutes(router: Router, db: Database) {
           }
           const [after] = targetId
             ? await tx.update(table).set(values).where(eq(table.id, targetId)).returning()
-            : await tx.insert(table).values(values).returning();
+            : await tx.insert(table).values({ ...values, ...(path === 'employees' ? { defaultRateBps: ('defaultRateBps' in values ? values.defaultRateBps : undefined) ?? 0 } : {}) }).returning();
           const row = requireRow(after, 'Record');
           await recordAudit(tx, ctx, path, update ? 'update' : 'create', row.id, before, row);
           return row.id;
@@ -172,16 +179,17 @@ export function recordsRoutes(router: Router, db: Database) {
     const ctx = requestContext(req, res);
     const value = cents(body.amount);
     if (value === 0n) invalid('Enter a positive payment amount.');
+    if (body.advance && body.earningsMonth !== body.paidOn.slice(0, 7)) invalid('An advance belongs to the month it was paid.');
     const paymentId = await mutate(db, ctx, 'salary-payment', body, async (tx) => {
       if (body.replacesId) {
         const previous = requireRow((await tx.select().from(salaryPayments).where(eq(salaryPayments.id, body.replacesId)).for('update'))[0], 'Payment');
-        if (previous.status !== 'REVERSED' || previous.employeeId !== body.employeeId) invalid('Choose a reversed payment for the same employee.');
+        if (previous.status !== 'REVERSED' || previous.employeeId !== body.employeeId || previous.advance !== body.advance) invalid('Choose a reversed payment of the same type for the same employee.');
       }
       const row = requireRow((await tx.insert(salaryPayments).values({
-        employeeId: body.employeeId, paidOn: body.paidOn, reference: body.reference, notes: body.notes, replacesId: body.replacesId,
+        employeeId: body.employeeId, paidOn: body.paidOn, advance: body.advance, reference: body.reference, notes: body.notes, replacesId: body.replacesId,
         earningsMonth: `${body.earningsMonth}-01`, amountCents: value, createdById: ctx.actorId,
       }).returning())[0], 'Payment');
-      await recordAudit(tx, ctx, 'payment', 'record', row.id, null, row);
+      await recordAudit(tx, ctx, body.advance ? 'advance' : 'payment', 'record', row.id, null, row);
       return row.id;
     });
     send(res, requireRow((await db.select().from(salaryPayments).where(eq(salaryPayments.id, paymentId)))[0], 'Payment'), 201);
@@ -197,7 +205,7 @@ export function recordsRoutes(router: Router, db: Database) {
       const [after] = await tx.update(salaryPayments).set({
         status: 'REVERSED', reversedById: ctx.actorId, reversedAt: new Date(), reversalReason: reason,
       }).where(eq(salaryPayments.id, paymentId)).returning();
-      await recordAudit(tx, ctx, 'payment', 'reverse', paymentId, before, after, reason);
+      await recordAudit(tx, ctx, before.advance ? 'advance' : 'payment', 'reverse', paymentId, before, after, reason);
       return paymentId;
     });
     send(res, { id: paymentId });

@@ -8,6 +8,8 @@ The signed-in workspace records vehicles, crew, trip sheets, expenses, and salar
 
 ## Local development
 
+See the [database connection guide](docs/setup.md) for local PostgreSQL and hosted staging setup.
+
 Use Node 24.22.3 and npm 11.19.1, the versions used to verify this workspace. If you use nvm, run `nvm install` and `nvm use` from the repository root first.
 
 ```sh
