@@ -1,6 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint, boolean, char, date, foreignKey, index, integer, jsonb, numeric, pgSchema,
-  primaryKey, text, timestamp, unique, uuid,
+  primaryKey, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
 export const fleetSchema = pgSchema('fuel_feet');
@@ -108,6 +109,7 @@ export const tripSheets = fleetSchema.table('trip_sheets', {
   policyVersion: integer(),
   notes: text(),
   status: tripStatus().notNull().default('DRAFT'),
+  discarded: boolean().notNull().default(false),
   version: integer().notNull().default(1),
   createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -204,8 +206,8 @@ export const documentAttachments = fleetSchema.table('document_attachments', {
   foreignKey({ columns: [table.tripId], foreignColumns: [tripSheets.id] }).onDelete('restrict').onUpdate('restrict'),
   foreignKey({ columns: [table.expenseId], foreignColumns: [vehicleExpenses.id] }).onDelete('restrict').onUpdate('restrict'),
   foreignKey({ columns: [table.uploadedById], foreignColumns: [userProfiles.id] }).onDelete('restrict').onUpdate('restrict'),
-  unique().on(table.tripId, table.sha256),
-  unique().on(table.expenseId, table.sha256),
+  uniqueIndex('active_trip_attachment_checksum').on(table.tripId, table.sha256).where(sql`status <> 'RETAINED'`),
+  uniqueIndex('active_expense_attachment_checksum').on(table.expenseId, table.sha256).where(sql`status <> 'RETAINED'`),
   index().on(table.status, table.createdAt),
 ]);
 

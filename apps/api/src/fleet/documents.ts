@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import type { Router } from 'express';
 import { auditLog, documentAttachments, tripSheets, vehicleExpenses } from '../db/schema.js';
-import { FleetError, filterQuery, id, invalid, recordAudit, requestContext, requireRow, send } from './common.js';
+import { FleetError, filterQuery, id, invalid, mutate, recordAudit, requestContext, requireRow, send } from './common.js';
 import type { Database } from './common.js';
 
 export type DocumentStorage = {
@@ -48,7 +48,6 @@ export function documentRoutes(router: Router, db: Database, storage?: DocumentS
   for (const parentType of ['trips', 'expenses'] as const) {
     const trips = parentType === 'trips';
     const parentColumn = trips ? documentAttachments.tripId : documentAttachments.expenseId;
-    const parentTable = trips ? tripSheets : vehicleExpenses;
     const path = `/${parentType}/:id/attachments`;
     router.get(path, async (req, res) => {
       const q = filterQuery.parse(req.query);
@@ -68,14 +67,20 @@ export function documentRoutes(router: Router, db: Database, storage?: DocumentS
       if (!type || type !== file.mimetype) invalid('Upload a PDF, JPEG or PNG with matching file contents.');
       const filename = file.originalname.replace(/[/\\\p{Cc}]/gu, '_').trim().slice(0, 180) || 'Document';
       const sha256 = digest(file.buffer);
-      requireRow((await db.select({ id: parentTable.id }).from(parentTable).where(eq(parentTable.id, parentId)))[0], 'Parent record');
-      const match = and(eq(parentColumn, parentId), eq(documentAttachments.sha256, sha256));
-      const [inserted] = await db.insert(documentAttachments).values({
-        tripId: trips ? parentId : null, expenseId: trips ? null : parentId, uploadedById: ctx.actorId,
-        byteSize: file.size, sha256, status: 'STAGED', filename, mediaType: type, objectKey: `records/${randomUUID()}`,
-      }).onConflictDoNothing().returning();
-      const row = inserted ?? requireRow((await db.select().from(documentAttachments).where(match))[0], 'Attachment');
-      if (row.status === 'RETAINED') throw new FleetError(409, 'ATTACHMENT_RETAINED', 'This document is retained in the archive.');
+      const row = await db.transaction(async (tx) => {
+        if (trips) {
+          requireRow((await tx.select({ id: tripSheets.id }).from(tripSheets)
+            .where(and(eq(tripSheets.id, parentId), eq(tripSheets.discarded, false))).for('share'))[0], 'Trip');
+        } else {
+          requireRow((await tx.select({ id: vehicleExpenses.id }).from(vehicleExpenses).where(eq(vehicleExpenses.id, parentId)))[0], 'Expense');
+        }
+        const match = and(eq(parentColumn, parentId), eq(documentAttachments.sha256, sha256), ne(documentAttachments.status, 'RETAINED'));
+        const [inserted] = await tx.insert(documentAttachments).values({
+          tripId: trips ? parentId : null, expenseId: trips ? null : parentId, uploadedById: ctx.actorId,
+          byteSize: file.size, sha256, status: 'STAGED', filename, mediaType: type, objectKey: `records/${randomUUID()}`,
+        }).onConflictDoNothing().returning();
+        return inserted ?? requireRow((await tx.select().from(documentAttachments).where(match))[0], 'Attachment');
+      });
       if (row.status === 'STAGED') {
         try {
           await storage!.put(row.objectKey, file.buffer, type);
@@ -90,12 +95,33 @@ export function documentRoutes(router: Router, db: Database, storage?: DocumentS
           const [ready] = await tx.update(documentAttachments).set({ status: 'READY' })
             .where(and(eq(documentAttachments.id, row.id), eq(documentAttachments.status, 'STAGED'))).returning();
           if (ready) await recordAudit(tx, ctx, 'document', 'attach', row.id, null,
-            { filename, mediaType: type, byteSize: file.size, parentType, parentId });
+            { filename: ready.filename, mediaType: type, byteSize: file.size, parentType, parentId });
+          else requireRow((await tx.select({ id: documentAttachments.id }).from(documentAttachments)
+            .where(and(eq(documentAttachments.id, row.id), eq(documentAttachments.status, 'READY'))))[0], 'Attachment');
         });
       }
       send(res, { id: row.id, filename: row.filename }, 201);
     });
   }
+
+  router.delete('/attachments/:id', async (req, res) => {
+    const attachmentId = id(req.params.id);
+    const ctx = requestContext(req, res);
+    await mutate(db, ctx, 'remove-document', { attachmentId }, async (tx) => {
+      const [row] = await tx.update(documentAttachments).set({ status: 'RETAINED' })
+        .where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.status, 'READY'))).returning();
+      if (row) {
+        await recordAudit(tx, ctx, 'document', 'remove', row.id,
+          { filename: row.filename, tripId: row.tripId, expenseId: row.expenseId, status: 'READY' },
+          { status: row.status });
+      } else {
+        requireRow((await tx.select({ id: documentAttachments.id }).from(documentAttachments)
+          .where(and(eq(documentAttachments.id, attachmentId), eq(documentAttachments.status, 'RETAINED'))))[0], 'Attachment');
+      }
+      return attachmentId;
+    });
+    send(res, { id: attachmentId });
+  });
 
   router.get('/attachments/:id/download', async (req, res) => {
     if (!storage) throw unavailable();

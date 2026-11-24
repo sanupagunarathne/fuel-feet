@@ -3,7 +3,7 @@ import { and, asc, desc, eq, getTableColumns, ilike, isNull, or, sql } from 'dri
 import { z } from 'zod';
 import { crewInput, crewRoles, distributorInput, employeeInput, expenseCategories, expenseInput,
   paymentInput, reasonInput, settingsInput, vehicleInput, versionInput } from '@fuel-feet/shared';
-import { companySettings, distributors, employees, salaryPayments, vehicleCrewAssignments, vehicleExpenses, vehicles } from '../db/schema.js';
+import { companySettings, distributors, employees, salaryPayments, tripSheets, vehicleCrewAssignments, vehicleExpenses, vehicles } from '../db/schema.js';
 import { cents, conflict, dateRange, filterQuery, id, invalid, mutate, period, recordAudit, requestContext, requireRow, send } from './common.js';
 import type { Database } from './common.js';
 
@@ -144,6 +144,11 @@ export function recordsRoutes(router: Router, db: Database) {
       const result = await mutate(db, ctx, `expense-${operation}`, { targetId, input, metadata }, async (tx) => {
         const before = targetId ? requireRow((await tx.select().from(vehicleExpenses).where(eq(vehicleExpenses.id, targetId)).for('update'))[0], 'Expense') : null;
         if (before && (before.version !== metadata?.version || before.voided)) conflict('Reload the expense before editing.');
+        if (input?.tripId) {
+          const [trip] = await tx.select({ id: tripSheets.id }).from(tripSheets)
+            .where(and(eq(tripSheets.id, input.tripId), eq(tripSheets.discarded, false))).for('share');
+          if (!trip) invalid('Choose an available trip.');
+        }
         const fields = input ? {
           vehicleId: input.vehicleId, tripId: input.tripId, expenseDate: input.expenseDate,
           category: input.category, amountCents: cents(input.amount), description: input.description,

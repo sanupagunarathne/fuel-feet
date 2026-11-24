@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
 import { Button } from '../components/ui';
-import { FleetToken, fleetRequest, message, useFleetQuery } from './client';
+import { FleetToken, fleetRequest, message, useFleetMutation, useFleetQuery } from './client';
 import { QueryResult } from './components';
 
 type Attachment = { id: string; filename: string; byteSize: number };
@@ -18,6 +18,7 @@ export async function download(response: Response, filename: string) {
 
 export function Documents({ page, id }: { page: 'trips' | 'expenses'; id: string }) {
   const token = useContext(FleetToken);
+  const mutate = useFleetMutation();
   const path = `/${page}/${id}/attachments`;
   const files = useFleetQuery<Attachment[]>(path);
   const [pending, setPending] = useState(false);
@@ -30,11 +31,21 @@ export function Documents({ page, id }: { page: 'trips' | 'expenses'; id: string
 
   return <>
     <QueryResult query={files}>{(rows) => rows.length ? <ul className="mb-4 divide-y divide-[var(--border)]">
-      {rows.map((file) => <li key={file.id} className="flex items-center justify-between gap-2 py-2">
+      {rows.map((file) => <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
         <span className="break-all text-sm">{file.filename}</span>
-        <Button disabled={pending} onClick={() => void run(async () => {
-          await download(await fleetRequest(token, `/attachments/${file.id}/download`), file.filename);
-        })}>Download</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={pending} onClick={() => void run(async () => {
+            await download(await fleetRequest(token, `/attachments/${file.id}/download`), file.filename);
+          })}>Download</Button>
+          <Button disabled={pending} aria-label={`Remove ${file.filename}`} onClick={() => {
+            if (!window.confirm(`Remove “${file.filename}” from this record?`)) return;
+            void run(async () => {
+              await mutate(`/attachments/${file.id}`, 'DELETE', {});
+              await files.refetch();
+              setStatus('Document removed.');
+            });
+          }}>Remove</Button>
+        </div>
       </li>)}
     </ul> : <p className="mb-4 text-sm text-muted">No documents attached.</p>}</QueryResult>
     <form onSubmit={(event) => {

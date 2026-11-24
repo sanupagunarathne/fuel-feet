@@ -144,6 +144,26 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
   await expect(dialog).toBeHidden();
   await expect(trip).toContainText('Confirmed');
 
+  await page.getByRole('button', { name: 'Add trip', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Add trip' });
+  const discardedReference = `UNUSED-${suffix}`;
+  await dialog.getByLabel('Trip-sheet reference').fill(discardedReference);
+  await dialog.getByLabel('Trip date').fill('2026-10-31');
+  await dialog.getByRole('combobox', { name: 'Vehicle', exact: true }).selectOption({ label: registration });
+  await expect(dialog.getByLabel('Actual driver').locator('option:checked')).toContainText(`Driver ${suffix}`);
+  await dialog.getByLabel('Loaded one-way distance (km)').fill('30');
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
+  await expect(dialog).toBeHidden();
+  const unusedTrip = page.getByRole('row').filter({ hasText: discardedReference });
+  await unusedTrip.getByRole('button', { name: 'Discard draft' }).click();
+  dialog = page.getByRole('dialog', { name: 'Discard trip draft' });
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(unusedTrip).toBeVisible();
+  await unusedTrip.getByRole('button', { name: 'Discard draft' }).click();
+  await dialog.getByRole('button', { name: 'Discard draft' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(unusedTrip).toHaveCount(0);
+
   await nav.getByRole('link', { name: 'Dashboard' }).click();
   await page.getByRole('link', { name: 'Add expense' }).click();
   dialog = page.getByRole('dialog', { name: 'Add expense' });
@@ -181,6 +201,14 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
     await expect(dialog).toContainText('Document uploaded.');
     const [document] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download', exact: true }).click()]);
     expect(document.suggestedFilename()).toBe('test-report.pdf');
+    page.once('dialog', (confirmation) => confirmation.dismiss());
+    const remove = dialog.getByRole('button', { name: 'Remove test-report.pdf' });
+    await remove.click();
+    await expect(remove).toBeVisible();
+    page.once('dialog', (confirmation) => confirmation.accept());
+    await remove.click();
+    await expect(dialog).toContainText('Document removed.');
+    await expect(dialog).toContainText('No documents attached.');
     await dialog.getByRole('button', { name: 'Close dialog' }).click();
   }
 

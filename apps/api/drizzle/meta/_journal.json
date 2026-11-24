@@ -15,6 +15,13 @@
       "when": 1795458490817,
       "tag": "0001_distance_rates_and_advances",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795496932724,
+      "tag": "0002_record_removal",
+      "breakpoints": true
     }
   ]
 }

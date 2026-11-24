@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { legacyTripInput, reasonInput, tripInput, versionInput } from '@fuel-feet/shared';
-import { employees, tripEarnings, tripSheets, vehicleCrewAssignments, vehicles } from '../db/schema.js';
+import { documentAttachments, employees, tripEarnings, tripSheets, vehicleCrewAssignments, vehicleExpenses, vehicles } from '../db/schema.js';
 import { cents, conflict, dateRange, earnings, filterQuery, id, invalid, jsonSafe, mutate, period, recordAudit, requestContext, requireRow, send } from './common.js';
 import type { Database, Transaction } from './common.js';
 import { distanceAmounts, fuelLitres, lockRates, ratesFor } from './rates.js';
@@ -128,7 +128,7 @@ const lifecycle = z.strictObject({
 export function tripRoutes(router: Router, db: Database) {
   router.get('/trips', async (req, res) => {
     const q = filterQuery.extend({ status: z.enum(['DRAFT', 'CONFIRMED', 'VOIDED']).optional() }).parse(req.query);
-    send(res, await db.select().from(tripSheets).where(and(dateRange(tripSheets.tripDate, period(q)),
+    send(res, await db.select().from(tripSheets).where(and(dateRange(tripSheets.tripDate, period(q)), eq(tripSheets.discarded, false),
       q.vehicleId ? eq(tripSheets.vehicleId, q.vehicleId) : undefined,
       q.status ? eq(tripSheets.status, q.status) : undefined,
       q.employeeId ? or(eq(tripSheets.driverId, q.employeeId), eq(tripSheets.conductorId, q.employeeId)) : undefined))
@@ -150,7 +150,7 @@ export function tripRoutes(router: Router, db: Database) {
   });
 
   async function detail(tripId: string) {
-    const trip = requireRow((await db.select().from(tripSheets).where(eq(tripSheets.id, tripId)))[0], 'Trip');
+    const trip = requireRow((await db.select().from(tripSheets).where(and(eq(tripSheets.id, tripId), eq(tripSheets.discarded, false))))[0], 'Trip');
     const entitlements = await db.select().from(tripEarnings).where(eq(tripEarnings.tripId, tripId));
     return { ...trip, entitlements };
   }
@@ -178,7 +178,7 @@ export function tripRoutes(router: Router, db: Database) {
     const ctx = requestContext(req, res);
     await mutate(db, ctx, 'edit-draft', { tripId, trip, version }, async (tx) => {
       const before = requireRow((await tx.select().from(tripSheets).where(eq(tripSheets.id, tripId)).for('update'))[0], 'Trip');
-      if (before.version !== version || before.status !== 'DRAFT') conflict('Reload the draft before editing.');
+      if (before.discarded || before.version !== version || before.status !== 'DRAFT') conflict('Reload the draft before editing.');
       if (trip.vehicleId !== before.vehicleId) await activeVehicle(tx, trip.vehicleId);
       if (trip.driverId !== before.driverId) await crewMember(tx, trip.driverId, 'DRIVER', trip);
       if (trip.conductorId !== before.conductorId) await crewMember(tx, trip.conductorId, 'CONDUCTOR', trip);
@@ -196,6 +196,25 @@ export function tripRoutes(router: Router, db: Database) {
     send(res, await existingPlan(db, existing, req.body?.trip, existing.entitlements));
   });
 
+  router.post('/trips/:id/discard', async (req, res) => {
+    const tripId = id(req.params.id);
+    const { version } = z.strictObject({ version: versionInput }).parse(req.body);
+    const ctx = requestContext(req, res);
+    await mutate(db, ctx, 'discard-trip-draft', { tripId, version }, async (tx) => {
+      const before = requireRow((await tx.select().from(tripSheets).where(eq(tripSheets.id, tripId)).for('update'))[0], 'Trip');
+      if (before.discarded || before.status !== 'DRAFT' || before.version !== version) conflict('Reload the trip before discarding a draft.');
+      const [expense] = await tx.select({ id: vehicleExpenses.id }).from(vehicleExpenses)
+        .where(and(eq(vehicleExpenses.tripId, tripId), eq(vehicleExpenses.voided, false))).limit(1);
+      if (expense) conflict('Unlink or void the expense attached to this draft before discarding it.');
+      const [after] = await tx.update(tripSheets).set({ discarded: true, version: version + 1 }).where(eq(tripSheets.id, tripId)).returning();
+      const retained = await tx.update(documentAttachments).set({ status: 'RETAINED' })
+        .where(eq(documentAttachments.tripId, tripId)).returning({ id: documentAttachments.id });
+      await recordAudit(tx, ctx, 'trip', 'discard', tripId, before, { ...after, retainedDocuments: retained.map(({ id }) => id) });
+      return tripId;
+    });
+    send(res, { id: tripId });
+  });
+
   for (const operation of ['confirm', 'correct', 'void'] as const) {
     router.post(`/trips/:id/${operation}`, async (req, res) => {
       const tripId = id(req.params.id);
@@ -207,7 +226,7 @@ export function tripRoutes(router: Router, db: Database) {
       await mutate(db, ctx, `trip-${operation}`, { tripId, body }, async (tx) => {
         const before = requireRow((await tx.select().from(tripSheets).where(eq(tripSheets.id, tripId)).for('update'))[0], 'Trip');
         const expected = operation === 'confirm' ? 'DRAFT' : 'CONFIRMED';
-        if (before.version !== body.version || before.status !== expected) conflict('Reload the trip before changing it.');
+        if (before.discarded || before.version !== body.version || before.status !== expected) conflict('Reload the trip before changing it.');
         const previous = await tx.select().from(tripEarnings).where(eq(tripEarnings.tripId, tripId));
         if (operation === 'void') {
           const [after] = await tx.update(tripSheets).set({ status: 'VOIDED', version: before.version + 1 })
