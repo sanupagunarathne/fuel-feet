@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq } from 'drizzle-orm';
 import { Pool } from 'pg';
-import { userProfiles } from './db/schema.js';
+import { tripRateSchedules, userProfiles } from './db/schema.js';
 import { logger } from './logger.js';
 
 export function createDatabase(connectionString: string) {
@@ -25,6 +25,7 @@ export function createDatabase(connectionString: string) {
     },
     async checkReady() {
       await db.select({ id: userProfiles.id }).from(userProfiles).limit(1);
+      await db.select({ month: tripRateSchedules.effectiveMonth }).from(tripRateSchedules).limit(1);
     },
     close: () => pool.end(),
   };

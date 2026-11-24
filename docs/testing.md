@@ -11,7 +11,7 @@ Run `npm test` for the current Vitest unit and Supertest HTTP coverage. It check
 
 Run `npm run test:fleet` with `FUEL_FEET_TEST_DATABASE_URL` and `FUEL_FEET_TEST_RUNTIME_URL` set to a disposable migrated database with runtime grants. It inserts synthetic records, races duplicate submissions, reconciles reports, reads the exported workbook, validates the PDF, and exercises private documents against an isolated storage adapter.
 
-To run the browser business workflow, also provision a second fresh administrator and set `FUEL_FEET_WORKFLOW_EMAIL`, `FUEL_FEET_WORKFLOW_PASSWORD` and `ALLOW_PROVISIONAL_FINANCE=true` in the isolated test process. Set `SUPABASE_STORAGE_KEY` and provision a private test bucket to cover browser upload and download. The browser test creates a vehicle, assigns crew, confirms a trip, records a toll, and compares the dashboard and report before downloading both formats. The test ends at a phone-sized viewport in dark mode.
+To run the browser business workflow, also provision a second fresh administrator and set `FUEL_FEET_WORKFLOW_EMAIL`, `FUEL_FEET_WORKFLOW_PASSWORD` in the isolated test process. Set `SUPABASE_STORAGE_KEY` and provision a private test bucket to cover browser upload and download. The browser test sets synthetic monthly rates, assigns crew, confirms a distance-based trip, records a toll and advance, and checks the dashboard and report before downloading both formats. The test ends at a phone-sized viewport in dark mode.
 
 ## Coverage plan
 
@@ -30,7 +30,7 @@ Use a disposable PostgreSQL database with migrations, temporary test storage or 
 
 ## Synthetic month-end reconciliation
 
-Use this scenario in future integration and export tests. Amounts are shown in LKR and use the provisional gross-revenue and rounding rules.
+This legacy scenario illustrates reconciliation for past percentage-based records. The current integration and browser fixtures use the confirmed distance-based model.
 
 | Vehicle | Trip date | Gross revenue | Driver earnings | Conductor earnings | Dated expenses |
 | --- | --- | ---: | ---: | ---: | --- |

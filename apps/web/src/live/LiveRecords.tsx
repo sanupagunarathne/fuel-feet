@@ -7,7 +7,7 @@ import { Button, SearchField, StatusBadge } from '../components/ui';
 import { dateLabel, lkr } from '../lib/format';
 import { FleetToken, fleetRequest, scope, useFleetMutation, useFleetQuery } from './client';
 import { EditDialog, EditorForm, QueryResult } from './components';
-import { asDecimal, categories, distributorFields, employeeFields, inputValues, label, reasonField,
+import { asDecimal, categories, distributorFields, employeeFields, employeeLabel, inputValues, label, reasonField,
   recordPayload, roles, today, tripStates, vehicleFields } from './fields';
 import type { Entity, Field, Option } from './fields';
 import { Documents } from './Documents';
@@ -21,7 +21,7 @@ const pageSize = 25;
 
 function entityOptions(rows: Entity[], name: string, role?: string) {
   return rows.filter((row) => !role || row.role === role).map((row) => ({
-    value: row.id, label: `${String(row[name])}${row.active === false ? ' (inactive)' : ''}`,
+    value: row.id, label: `${name === 'fullName' ? employeeLabel(row) : String(row[name])}${row.active === false ? ' (inactive)' : ''}`,
   }));
 }
 
@@ -44,8 +44,8 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
   const [vehicle, setVehicle] = useState(params.get('vehicleId') ?? '');
   const [offset, setOffset] = useState(0);
   const [notice, setNotice] = useState('');
-  const tripQuickAdd = page === 'trips' && params.get('entry') === 'new';
-  const editor = dialog ?? (tripQuickAdd ? { action: 'new' } as const : undefined);
+  const quickAdd = (page === 'trips' || page === 'expenses') && params.get('entry') === 'new';
+  const editor = dialog ?? (quickAdd ? { action: 'new' } as const : undefined);
   const queries = useQueryClient();
   const dateScoped = page === 'trips' || page === 'expenses';
   const directory = page === 'vehicles' || page === 'employees';
@@ -59,7 +59,7 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
   const vehicleChoices = entityOptions(allVehicles.data ?? [], 'registration');
   const close = () => {
     setDialog(undefined);
-    if (tripQuickAdd) {
+    if (quickAdd) {
       const next = new URLSearchParams(params);
       next.delete('entry');
       setParams(next, { replace: true });
@@ -85,13 +85,14 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
   const vehicleName: TableColumn<Entity> = { key: 'vehicleId', label: 'Vehicle',
     cell: (row) => vehicleChoices.find((option) => option.value === row.vehicleId)?.label ?? '—' };
   const moneyColumn = (key: string, title: string): TableColumn<Entity> => ({ key, label: title,
-    cell: (row) => lkr(String(row[key])), align: 'right' });
+    cell: (row) => key === 'revenueCents' && row.status === 'DRAFT' ? '—' : lkr(String(row[key])), align: 'right' });
   const dateColumn = (key: string): TableColumn<Entity> => ({ key, label: 'Date', cell: (row) => dateLabel(String(row[key])) });
   const columns: Record<EntityPage, TableColumn<Entity>[]> = {
     vehicles: [listColumn('registration', 'Registration'), listColumn('nickname', 'Vehicle name'), listColumn('model', 'Model'), statusColumn],
-    employees: [listColumn('fullName', 'Employee'), { key: 'role', label: 'Role', cell: (r) => label(String(r.role)) },
-      { key: 'defaultRateBps', label: 'Salary rate', cell: (r) => `${asDecimal(String(r.defaultRateBps))}%` }, statusColumn],
-    trips: [listColumn('reference', 'Trip sheet'), dateColumn('tripDate'), vehicleName, moneyColumn('revenueCents', 'Revenue'), statusColumn],
+    employees: [{ key: 'fullName', label: 'Employee', cell: employeeLabel },
+      { key: 'role', label: 'Role', cell: (r) => label(String(r.role)) }, statusColumn],
+    trips: [listColumn('reference', 'Trip sheet'), dateColumn('tripDate'), vehicleName,
+      { key: 'distance', label: 'Loaded distance', cell: (row) => row.loadedDistanceKm ? `${Number(row.loadedDistanceKm)} km` : '—' }, moneyColumn('revenueCents', 'Revenue'), statusColumn],
     expenses: [{ key: 'category', label: 'Category', cell: (r) => label(String(r.category)) }, dateColumn('expenseDate'), vehicleName,
       listColumn('description', 'Description'), moneyColumn('amountCents', 'Amount'), statusColumn],
     distributors: [listColumn('name', 'Distributor'), statusColumn],
@@ -133,9 +134,9 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
 export function Filter({ label, value, options, onChange, allowEmpty = true }: {
   label: string; value: string; options: Option[]; onChange: (value: string) => void; allowEmpty?: boolean;
 }) {
-  return <label className="field-label">
+  return <label className="field-label min-w-0 max-w-full">
     <span className="sr-only">{label}</span>
-    <select className="select-field" value={value} onChange={(event) => onChange(event.target.value)}>
+    <select className="select-field max-w-full" value={value} onChange={(event) => onChange(event.target.value)}>
       {allowEmpty && <option value="">{label === 'Category' ? 'All categories' : label.endsWith('status') || label === 'Status' ? 'All statuses' : `All ${label.toLowerCase()}s`}</option>}
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>
@@ -183,7 +184,8 @@ function CrewEditor({ vehicle, onClose, onSaved }: { vehicle: Entity; onClose: (
   }}</QueryResult>}</QueryResult>;
 }
 
-type Preview = { preview: string; provisional: boolean; basis: string; basisCents: string; entitlements: { role: string; rateBps: number; amountCents: string }[] };
+type Preview = { preview: string; basis?: string; revenueCents: string; loadedDistanceKm?: string; litres?: number;
+  entitlements: { role: string; rateBps: number | null; ratePerKmCents: string | null; amountCents: string }[] };
 function RecordEditor({ editor, page, period, onClose, onSaved }: {
   editor: Editor; page: EntityPage; period: string; onClose: () => void; onSaved: () => Promise<void>;
 }) {
@@ -196,14 +198,14 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
   const employees = useFleetQuery<Entity[]>('/employees?limit=200', needsEntries && page === 'trips');
   const distributors = useFleetQuery<Entity[]>('/distributors?limit=200', needsEntries && page === 'trips');
   const trips = useFleetQuery<Entity[]>(scope('/trips', { month: period, limit: 200 }), needsEntries && page === 'expenses');
-  const policy = useFleetQuery<{ basis: string | null; policyApproved: boolean } | null>('/settings', needsEntries && page === 'trips');
-  const prerequisites = needsEntries ? (page === 'trips' ? [vehicles, employees, distributors, policy] : [vehicles, trips]) : [];
+  const prerequisites = needsEntries ? (page === 'trips' ? [vehicles, employees, distributors] : [vehicles, trips]) : [];
   for (const result of prerequisites) {
     if (result.isPending || result.isError) return <QueryResult query={result as typeof vehicles}>{() => null}</QueryResult>;
   }
 
   const vehicleField: Field = { name: 'vehicleId', label: 'Vehicle', kind: 'select', options: entityOptions(vehicles.data ?? [], 'registration') };
-  const adjusted = row?.status === 'CONFIRMED' ? row.basis === 'ADJUSTED' : policy.data?.policyApproved && policy.data.basis === 'ADJUSTED';
+  const legacy = row?.status === 'CONFIRMED' && row.loadedDistanceKm === null;
+  const adjusted = legacy && row.basis === 'ADJUSTED';
   const tripFields: Field[] = [
     { name: 'reference', label: 'Trip-sheet reference' }, vehicleField,
     { name: 'tripDate', label: 'Trip date', kind: 'date', initial: today() },
@@ -211,7 +213,8 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
     { name: 'driverId', label: 'Actual driver', kind: 'select', optional: true, options: entityOptions(employees.data ?? [], 'fullName', 'DRIVER') },
     { name: 'conductorId', label: 'Actual conductor', kind: 'select', optional: true, options: entityOptions(employees.data ?? [], 'fullName', 'CONDUCTOR') },
     { name: 'origin', label: 'Origin', optional: true }, { name: 'destination', label: 'Destination', optional: true },
-    { name: 'revenue', label: 'Revenue (LKR)', kind: 'money' },
+    ...(legacy ? [{ name: 'revenue', label: 'Revenue (LKR)', kind: 'money' }] as Field[]
+      : [{ name: 'loadedDistanceKm', label: 'Loaded one-way distance (km)', kind: 'decimal' }] as Field[]),
     ...(adjusted ? [{ name: 'adjustedBasis', label: 'Adjusted salary basis (LKR)', kind: 'money', optional: true },
       { name: 'adjustmentReason', label: 'Basis adjustment reason', optional: true }] as Field[] : []),
     { name: 'notes', label: 'Notes', kind: 'textarea', optional: true },
@@ -230,7 +233,6 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
     : correcting || page === 'expenses' && action === 'edit' ? [...base, reasonField] : base;
   const initial = inputValues(fields, {
     ...row,
-    ...(row?.defaultRateBps === undefined ? {} : { defaultRateBps: asDecimal(String(row.defaultRateBps)) }),
     ...(row?.revenueCents === undefined ? {} : { revenue: asDecimal(String(row.revenueCents)) }),
     ...(row?.amountCents === undefined ? {} : { amount: asDecimal(String(row.amountCents)) }),
     ...(adjusted && row?.basisCents ? { adjustedBasis: asDecimal(String(row.basisCents)) } : {}),
@@ -249,10 +251,10 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
       const preview = await mutate(`${path}/preview`, 'POST', proposed, false) as Preview;
       setApprovedPreview(preview.preview);
       return <>
-        <p className="font-semibold">{label(preview.basis)} basis · {lkr(preview.basisCents)}</p>
-        {preview.provisional && <p className="mt-1 text-sm text-muted">Provisional development calculation</p>}
+        <p className="font-semibold">Trip revenue · {lkr(preview.revenueCents)}</p>
+        {preview.loadedDistanceKm && <p className="mt-1 text-sm">{Number(preview.loadedDistanceKm)} km loaded · {preview.litres?.toLocaleString('en-LK')} L</p>}
         <ul className="mt-1 text-sm">{preview.entitlements.map((entry) => <li key={entry.role}>
-          {label(entry.role)} · {asDecimal(String(entry.rateBps))}% · {lkr(entry.amountCents)}
+          {label(entry.role)} · {entry.ratePerKmCents === null ? `${asDecimal(String(entry.rateBps))}%` : `${lkr(entry.ratePerKmCents)}/km`} · {lkr(entry.amountCents)}
         </li>)}</ul>
       </>;
     } : undefined}

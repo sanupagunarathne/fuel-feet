@@ -21,9 +21,12 @@
 
 ## Next milestone
 
-Review the [deployment plan](deployment.md) and the [owner decisions](requirements.md#owner-decisions) before choosing hosted services and a rollout date.
+Configure hosted staging using the [database connection guide](setup.md). Enter the exact IOC tariff and verify worked trips and salary statements before proceeding with the [deployment plan](deployment.md).
 
 - [x] Record the Phase 02 [installation and verification commands](../README.md#local-development).
 - [ ] Review reference, rate history and payment allocation before accepting real transactions. Apply a follow-up migration if the provisional database rules change.
-- [ ] Record accepted business rules and effective dates before enabling affected production features.
+- [x] Record confirmed distance-based revenue and crew-pay formulas.
+- [x] Implement and verify the new formulas with effective-month rate schedules in development.
+- [x] Add employee assignment labels and dated salary advances. Verify month-end balances and operating profit in development.
+- [ ] Verify actual tariff precision, rounding, and advance settlement against the owner’s trip and salary records in staging.
 - [ ] Obtain approval for production rollout and recurring costs.

@@ -20,7 +20,6 @@ function start() {
       ? supabaseStorage(config.supabase.url, process.env.SUPABASE_STORAGE_KEY, process.env.SUPABASE_DOCUMENT_BUCKET || 'fuel-feet-documents')
       : undefined,
     maxDocumentBytes: config.maxDocumentBytes,
-    allowProvisional: process.env.NODE_ENV !== 'production' && process.env.ALLOW_PROVISIONAL_FINANCE === 'true',
     databaseReady: db?.checkReady,
   }).listen(config.port, '0.0.0.0', () => {
     logger.info({ port: config.port }, 'API listening');

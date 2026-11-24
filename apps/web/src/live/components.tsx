@@ -43,8 +43,8 @@ export function Fields({ fields, values, onChange, disabled }: {
             {options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         ) : kind === 'textarea' ? <textarea rows={3} maxLength={2000} {...attributes} />
-          : <input {...attributes} type={kind === 'money' ? 'text' : kind ?? 'text'}
-            inputMode={kind === 'money' ? 'decimal' : undefined} maxLength={kind === 'money' ? 15 : 150} />}
+          : <input {...attributes} type={kind === 'money' || kind === 'decimal' ? 'text' : kind ?? 'text'}
+            inputMode={kind === 'money' || kind === 'decimal' ? 'decimal' : undefined} maxLength={kind === 'money' ? 15 : kind === 'decimal' ? 19 : 150} />}
       </label>;
     })}
   </fieldset>;

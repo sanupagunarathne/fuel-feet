@@ -123,6 +123,7 @@ export function App({ account, token }: { account?: ReactNode; token?: string })
             </div>
             <div className="flex flex-wrap gap-2">
             {token && section?.path !== '/trips' && <Link className="button button--primary" to={`/trips?period=${period}&entry=new`}>Quick add trip</Link>}
+            {token && section?.path === '/' && <Link className="button button--secondary" to={`/expenses?period=${period}&entry=new`}>Add expense</Link>}
             {section && 'period' in section && (
               <PeriodPicker period={period} onChange={(value) => {
                 const next = new URLSearchParams(params);

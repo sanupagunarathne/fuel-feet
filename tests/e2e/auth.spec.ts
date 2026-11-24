@@ -86,6 +86,16 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
   const registration = `TEST ${suffix}`;
   const reference = `BROWSER-${suffix}`;
   const nav = page.getByRole('navigation', { name: 'Primary' });
+  await nav.getByRole('link', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Set rates', exact: true }).click();
+  const rates = page.getByRole('dialog', { name: 'Set trip rates' });
+  await rates.getByLabel('Effective month').fill('2026-10');
+  await rates.getByLabel('IOC tariff (LKR per litre per km)').fill('0.05');
+  await expect(rates.getByLabel('Driver pay (LKR per km)')).toHaveValue('45.00');
+  await expect(rates.getByLabel('Conductor pay (LKR per km)')).toHaveValue('40.00');
+  await rates.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(rates).toBeHidden();
+  await nav.getByRole('link', { name: 'Vehicles' }).click();
   await page.getByRole('button', { name: 'Add vehicle' }).click();
   let dialog = page.getByRole('dialog');
   await dialog.getByLabel('Registration number').fill(registration);
@@ -93,12 +103,11 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
   await expect(dialog).toBeHidden();
 
   await nav.getByRole('link', { name: 'Employees' }).click();
-  for (const [role, rate] of [['Driver', '10'], ['Conductor', '5']] as const) {
+  for (const role of ['Driver', 'Conductor']) {
     await page.getByRole('button', { name: 'Add employee' }).click();
     dialog = page.getByRole('dialog');
     await dialog.getByLabel('Full name').fill(`${role} ${suffix}`);
     await dialog.getByLabel('Crew role').selectOption({ label: role });
-    await dialog.getByLabel('Salary rate (%)').fill(rate);
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
   }
@@ -118,24 +127,26 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
   await dialog.getByLabel('Trip-sheet reference').fill(reference);
   await dialog.getByLabel('Trip date').fill('2026-10-31');
   await dialog.getByRole('combobox', { name: 'Vehicle', exact: true }).selectOption({ label: registration });
-  await expect(dialog.getByLabel('Actual driver').locator('option:checked')).toHaveText(`Driver ${suffix}`);
-  await expect(dialog.getByLabel('Actual conductor').locator('option:checked')).toHaveText(`Conductor ${suffix}`);
-  await dialog.getByLabel('Revenue (LKR)').fill('50000.00');
+  await expect(dialog.getByLabel('Actual driver').locator('option:checked')).toHaveText(`${registration} - Driver (Driver ${suffix})`);
+  await expect(dialog.getByLabel('Actual conductor').locator('option:checked')).toHaveText(`${registration} - Conductor (Conductor ${suffix})`);
+  await dialog.getByLabel('Loaded one-way distance (km)').fill('150');
   await dialog.getByRole('button', { name: 'Save draft' }).click();
   await expect(dialog).toBeHidden();
   const trip = page.getByRole('row').filter({ hasText: reference });
   await trip.getByRole('button', { name: 'Confirm', exact: true }).click();
   dialog = page.getByRole('dialog', { name: 'Confirm trip' });
   await dialog.getByRole('button', { name: 'Review earnings' }).click();
-  await expect(dialog).toContainText('Rs. 5,000.00');
-  await expect(dialog).toContainText('Rs. 2,500.00');
+  await expect(dialog).toContainText('Rs. 49,500.00');
+  await expect(dialog).toContainText('6,600 L');
+  await expect(dialog).toContainText('Rs. 6,750.00');
+  await expect(dialog).toContainText('Rs. 6,000.00');
   await dialog.getByRole('button', { name: 'Confirm trip' }).click();
   await expect(dialog).toBeHidden();
   await expect(trip).toContainText('Confirmed');
 
-  await nav.getByRole('link', { name: 'Expenses' }).click();
-  await page.getByRole('button', { name: 'Add expense' }).click();
-  dialog = page.getByRole('dialog');
+  await nav.getByRole('link', { name: 'Dashboard' }).click();
+  await page.getByRole('link', { name: 'Add expense' }).click();
+  dialog = page.getByRole('dialog', { name: 'Add expense' });
   await dialog.getByRole('combobox', { name: 'Vehicle', exact: true }).selectOption({ label: registration });
   await dialog.getByLabel('Expense date').fill('2026-10-31');
   await dialog.getByLabel('Category').selectOption({ label: 'Highway bills' });
@@ -146,9 +157,13 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
 
   await nav.getByRole('link', { name: 'Dashboard' }).click();
   await page.getByRole('combobox', { name: 'Vehicle', exact: true }).selectOption({ label: registration });
-  await expect(page.getByRole('table', { name: 'Vehicle profitability' })).toContainText('Rs. 41,500.00');
-  await page.getByRole('link', { name: 'View operating statement' }).click();
-  await expect(page.getByRole('table', { name: 'Fleet operating statement' })).toContainText('Rs. 41,500.00');
+  await expect(page.getByRole('table', { name: 'Vehicle profitability' })).toContainText('Rs. 35,750.00');
+  const recentTrips = page.getByRole('table', { name: 'Recent trip sheets' });
+  await expect(recentTrips).toBeHidden();
+  await page.getByText('Charts and recent records', { exact: true }).click();
+  await expect(recentTrips).toContainText(reference);
+  await page.getByRole('link', { name: 'Monthly report' }).click();
+  await expect(page.getByRole('table', { name: 'Fleet operating statement' })).toContainText('Rs. 35,750.00');
 
   const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'PDF', exact: true }).click()]);
   expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
@@ -170,15 +185,24 @@ test('operational workflow creates a trip, reconciles profit and exports the rep
   }
 
   await nav.getByRole('link', { name: 'Salaries' }).click();
+  await page.getByRole('button', { name: 'Record advance', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Record advance' });
+  const employeeOption = `${registration} - Driver (Driver ${suffix})`;
+  await dialog.getByRole('combobox', { name: 'Employee', exact: true }).selectOption({ label: employeeOption });
+  await dialog.getByLabel('Advance date').fill('2026-10-29');
+  await dialog.getByLabel('Advance amount (LKR)').fill('1000');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeHidden();
+
   await page.getByRole('button', { name: 'Record payment', exact: true }).click();
   dialog = page.getByRole('dialog');
-  await dialog.getByRole('combobox', { name: 'Employee', exact: true }).selectOption({ label: `Driver ${suffix}` });
+  await dialog.getByRole('combobox', { name: 'Employee', exact: true }).selectOption({ label: employeeOption });
   await dialog.getByLabel('Payment date').fill('2026-11-05');
   await dialog.getByLabel('Payment amount (LKR)').fill('1000');
   await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toBeHidden();
   const salaryRow = page.getByRole('table', { name: 'Employee balances' }).getByRole('row').filter({ hasText: `Driver ${suffix}` });
-  await expect(salaryRow).toContainText('Rs. 4,000.00');
+  await expect(salaryRow).toContainText('Rs. 4,750.00');
   await expect(salaryRow).toContainText('Partial');
 
   await page.setViewportSize({ width: 390, height: 844 });

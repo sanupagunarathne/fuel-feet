@@ -1,5 +1,5 @@
 import {
-  bigint, boolean, char, date, foreignKey, index, integer, jsonb, pgSchema,
+  bigint, boolean, char, date, foreignKey, index, integer, jsonb, numeric, pgSchema,
   primaryKey, text, timestamp, unique, uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -79,6 +79,14 @@ export const distributors = fleetSchema.table('distributors', {
   updatedAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const tripRateSchedules = fleetSchema.table('trip_rate_schedules', {
+  effectiveMonth: date().primaryKey(),
+  iocTariff: numeric({ precision: 18, scale: 12 }).notNull(),
+  driverCentsPerKm: bigint({ mode: 'bigint' }).notNull(),
+  conductorCentsPerKm: bigint({ mode: 'bigint' }).notNull(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
 export const tripSheets = fleetSchema.table('trip_sheets', {
   id: uuid().primaryKey().defaultRandom(),
   vehicleId: uuid().notNull(),
@@ -90,6 +98,9 @@ export const tripSheets = fleetSchema.table('trip_sheets', {
   tripDate: date().notNull(),
   origin: text(),
   destination: text(),
+  loadedDistanceKm: numeric({ precision: 9, scale: 3 }),
+  iocTariff: numeric({ precision: 18, scale: 12 }),
+  rateEffectiveMonth: date(),
   revenueCents: bigint({ mode: 'bigint' }).notNull(),
   basis: earningsBasis(),
   basisCents: bigint({ mode: 'bigint' }),
@@ -118,7 +129,8 @@ export const tripEarnings = fleetSchema.table('trip_earnings', {
   tripId: uuid().notNull(),
   employeeId: uuid().notNull(),
   role: crewRole().notNull(),
-  rateBps: integer().notNull(),
+  rateBps: integer(),
+  ratePerKmCents: bigint({ mode: 'bigint' }),
   amountCents: bigint({ mode: 'bigint' }).notNull(),
   rounding: text().notNull().default('HALF_UP'),
 }, (table) => [
@@ -156,6 +168,7 @@ export const salaryPayments = fleetSchema.table('salary_payments', {
   createdById: uuid().notNull(),
   earningsMonth: date().notNull(),
   paidOn: date().notNull(),
+  advance: boolean().notNull().default(false),
   amountCents: bigint({ mode: 'bigint' }).notNull(),
   reference: text(),
   notes: text(),
