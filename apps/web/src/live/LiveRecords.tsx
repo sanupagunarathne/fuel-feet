@@ -13,7 +13,7 @@ import type { Entity, Field, Option } from './fields';
 import { Documents } from './Documents';
 
 export type EntityPage = 'vehicles' | 'employees' | 'trips' | 'expenses' | 'distributors';
-type Editor = { action: 'new' | 'edit' | 'crew' | 'confirm' | 'void' | 'files' | 'discard'; row?: Entity };
+type Editor = { action: 'new' | 'edit' | 'crew' | 'confirm' | 'void' | 'files' | 'discard' | 'fuel'; row?: Entity };
 type Crew = { id: string; employeeId: string; role: string; startsOn: string; endsBefore: string | null };
 
 const pageTitles: Record<EntityPage, string> = { vehicles: 'Vehicle', employees: 'Employee', trips: 'Trip', expenses: 'Expense', distributors: 'Distributor' };
@@ -96,7 +96,12 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
       { key: 'role', label: 'Role', cell: (r) => label(String(r.role)) }, statusColumn],
     trips: [listColumn('reference', 'Trip sheet'), dateColumn('tripDate'), vehicleName,
       { key: 'distance', label: 'Loaded distance', cell: (row) => row.loadedDistanceKm ? `${Number(row.loadedDistanceKm)} km` : '—' }, moneyColumn('revenueCents', 'Revenue'), statusColumn],
-    expenses: [{ key: 'category', label: 'Category', cell: (r) => label(String(r.category)) }, dateColumn('expenseDate'), vehicleName,
+    expenses: [{ key: 'category', label: 'Category', cell: (row) => <>
+      {label(String(row.category))}
+      {row.category === 'FUEL' && row.fuelLitres != null && row.fuelPriceCentsPerLitre != null && (
+        <div className="text-sm text-muted">{Number(row.fuelLitres)} L at {lkr(String(row.fuelPriceCentsPerLitre))}/L</div>
+      )}
+    </> }, dateColumn('expenseDate'), vehicleName,
       listColumn('description', 'Description'), moneyColumn('amountCents', 'Amount'), statusColumn],
     distributors: [listColumn('name', 'Distributor'), statusColumn],
   };
@@ -117,7 +122,10 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
           {page !== 'distributors' && <Filter label={page === 'expenses' ? 'Category' : page === 'employees' ? 'Role' : 'Status'}
             value={filter} options={filters} onChange={(value) => { setFilter(value); setOffset(0); }} />}
         </div>
-        <Button variant="primary" onClick={() => { setNotice(''); setDialog({ action: 'new' }); }}>Add {pageTitles[page].toLowerCase()}</Button>
+        <div className="flex flex-wrap gap-2">
+          {page === 'expenses' && <Button onClick={() => { setNotice(''); setDialog({ action: 'fuel' }); }}>Record daily fuel</Button>}
+          <Button variant="primary" onClick={() => { setNotice(''); setDialog({ action: 'new' }); }}>Add {pageTitles[page].toLowerCase()}</Button>
+        </div>
       </div>
       {notice && <p role="status" className="px-5 pb-3 text-sm">{notice}</p>}
       <QueryResult query={data}>{(rows) => <>
@@ -161,7 +169,7 @@ function RecordDialog({ editor, page, period, onClose, onSaved }: {
       </EditorForm>
     </EditDialog>;
   }
-  const title = `${{ new: 'Add', edit: row?.status === 'CONFIRMED' ? 'Correct' : 'Edit', crew: 'Manage', confirm: 'Confirm', void: 'Void', files: 'Documents for', discard: 'Discard' }[action]} ${action === 'crew' ? 'crew' : pageTitles[page].toLowerCase()}`;
+  const title = action === 'fuel' ? 'Record daily fuel' : action === 'edit' && row?.category === 'FUEL' ? 'Edit daily fuel' : `${{ new: 'Add', edit: row?.status === 'CONFIRMED' ? 'Correct' : 'Edit', crew: 'Manage', confirm: 'Confirm', void: 'Void', files: 'Documents for', discard: 'Discard', fuel: 'Record' }[action]} ${action === 'crew' ? 'crew' : pageTitles[page].toLowerCase()}`;
   if (action === 'files' && row && (page === 'trips' || page === 'expenses')) {
     return <EditDialog title={title} onClose={onClose}><Documents page={page} id={row.id} /></EditDialog>;
   }
@@ -207,12 +215,13 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
   const [approvedPreview, setApprovedPreview] = useState('');
   const token = useContext(FleetToken);
   const mutate = useFleetMutation();
-  const needsEntries = (action === 'new' || action === 'edit') && (page === 'trips' || page === 'expenses');
+  const dailyFuel = action === 'fuel' || row?.category === 'FUEL';
+  const needsEntries = (action === 'new' || action === 'edit' || action === 'fuel') && (page === 'trips' || page === 'expenses');
   const vehicles = useFleetQuery<Entity[]>('/vehicles?limit=200', needsEntries);
   const employees = useFleetQuery<Entity[]>('/employees?limit=200', needsEntries && page === 'trips');
   const distributors = useFleetQuery<Entity[]>('/distributors?limit=200', needsEntries && page === 'trips');
-  const trips = useFleetQuery<Entity[]>(scope('/trips', { month: period, limit: 200 }), needsEntries && page === 'expenses');
-  const prerequisites = needsEntries ? (page === 'trips' ? [vehicles, employees, distributors] : [vehicles, trips]) : [];
+  const trips = useFleetQuery<Entity[]>(scope('/trips', { month: period, limit: 200 }), needsEntries && page === 'expenses' && !dailyFuel);
+  const prerequisites = needsEntries ? (page === 'trips' ? [vehicles, employees, distributors] : dailyFuel ? [vehicles] : [vehicles, trips]) : [];
   for (const result of prerequisites) {
     if (result.isPending || result.isError) return <QueryResult query={result as typeof vehicles}>{() => null}</QueryResult>;
   }
@@ -234,10 +243,14 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
     { name: 'notes', label: 'Notes', kind: 'textarea', optional: true },
   ];
   const expenseFields: Field[] = [
-    vehicleField, { name: 'expenseDate', label: 'Expense date', kind: 'date', initial: today() },
-    { name: 'category', label: 'Category', kind: 'select', options: categories },
-    { name: 'amount', label: 'Amount (LKR)', kind: 'money' },
-    { name: 'tripId', label: 'Related trip', kind: 'select', optional: true, options: entityOptions(trips.data ?? [], 'reference') },
+    vehicleField, { name: 'expenseDate', label: dailyFuel ? 'Fuel use date' : 'Expense date', kind: 'date', initial: today() },
+    ...(dailyFuel ? [
+      { name: 'fuelLitres', label: 'GPS litres burned', kind: 'decimal' },
+    ] as Field[] : [
+      { name: 'category', label: 'Category', kind: 'select', options: categories.filter(({ value }) => value !== 'FUEL') },
+      { name: 'amount', label: 'Amount (LKR)', kind: 'money' },
+      { name: 'tripId', label: 'Related trip', kind: 'select', optional: true, options: entityOptions(trips.data ?? [], 'reference') },
+    ] as Field[]),
     { name: 'description', label: 'Description', kind: 'textarea', optional: true },
   ];
   const base = { vehicles: vehicleFields, employees: employeeFields, distributors: distributorFields, trips: tripFields, expenses: expenseFields }[page];
@@ -276,7 +289,7 @@ function RecordEditor({ editor, page, period, onClose, onSaved }: {
       if (action === 'void') await mutate(`${path}/void`, 'POST', { version: row?.version, reason: values.reason });
       else if (action === 'confirm') await mutate(`${path}/confirm`, 'POST', { version: row?.version, preview: approvedPreview });
       else {
-        const record = recordPayload(base, values);
+        const record = { ...recordPayload(base, values), ...(dailyFuel ? { category: 'FUEL' } : {}) };
         if (!row) await mutate(path, 'POST', record);
         else if (correcting) await mutate(`${path}/correct`, 'POST', {
           version: row.version, reason: values.reason, trip: record, preview: approvedPreview,

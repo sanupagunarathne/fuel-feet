@@ -22,6 +22,13 @@
       "when": 1795496932724,
       "tag": "0002_record_removal",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795631009732,
+      "tag": "0003_daily_fuel",
+      "breakpoints": true
     }
   ]
 }

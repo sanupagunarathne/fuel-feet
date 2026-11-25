@@ -1,7 +1,7 @@
 import type { Router } from 'express';
 import { desc, eq, gte, lte, and, lt, sql } from 'drizzle-orm';
-import { tripRateInput } from '@fuel-feet/shared';
-import { tripRateSchedules, tripSheets } from '../db/schema.js';
+import { fuelPriceInput, tripRateInput } from '@fuel-feet/shared';
+import { fuelPrices, tripRateSchedules, tripSheets } from '../db/schema.js';
 import { cents, colomboMonth, conflict, invalid, monthStart, mutate, recordAudit, requestContext, requireRow, send } from './common.js';
 import type { Database, Transaction } from './common.js';
 
@@ -34,7 +34,35 @@ export async function ratesFor(db: Database | Transaction, tripDate: string) {
   return rate;
 }
 
+export async function fuelPriceFor(tx: Transaction, expenseDate: string) {
+  const [price] = await tx.select().from(fuelPrices).where(lte(fuelPrices.effectiveDate, expenseDate))
+    .orderBy(desc(fuelPrices.effectiveDate)).limit(1);
+  if (!price) invalid('Set a fuel price effective on or before this date in Settings → Fuel prices.');
+  return price.centsPerLitre;
+}
+
+export function fuelAmount(litres: string, price: bigint) {
+  const volume = decimal(litres);
+  return (volume.value * price * 2n + volume.divisor) / (2n * volume.divisor);
+}
+
 export function rateRoutes(router: Router, db: Database) {
+  router.get('/fuel-prices', async (_req, res) => send(res, await db.select().from(fuelPrices).orderBy(desc(fuelPrices.effectiveDate))));
+  router.put('/fuel-prices', async (req, res) => {
+    const body = fuelPriceInput.parse(req.body);
+    const ctx = requestContext(req, res);
+    const price = { effectiveDate: body.effectiveDate, centsPerLitre: cents(body.pricePerLitre) };
+    const saved = await mutate(db, ctx, 'set-fuel-price', body, async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('fuel_feet.fuel_prices'))`);
+      const [before] = await tx.select().from(fuelPrices).where(eq(fuelPrices.effectiveDate, price.effectiveDate));
+      const [after] = await tx.insert(fuelPrices).values(price).onConflictDoUpdate({
+        target: fuelPrices.effectiveDate, set: price,
+      }).returning();
+      await recordAudit(tx, ctx, 'fuel-price', 'set', price.effectiveDate, before ?? null, after);
+      return price.effectiveDate;
+    });
+    send(res, requireRow((await db.select().from(fuelPrices).where(eq(fuelPrices.effectiveDate, saved)))[0], 'Fuel price'));
+  });
   router.get('/rates', async (_req, res) => send(res, await db.select().from(tripRateSchedules)
     .orderBy(desc(tripRateSchedules.effectiveMonth))));
   router.put('/rates', async (req, res) => {

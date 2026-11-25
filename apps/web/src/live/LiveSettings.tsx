@@ -4,6 +4,7 @@ import { Button } from '../components/ui';
 import { EditDialog, EditorForm, QueryResult } from './components';
 import { inputValues, recordPayload, settingsFields } from './fields';
 import { useFleetMutation, useFleetQuery } from './client';
+import { LiveFuelPrices } from './LiveFuelPrices';
 import { LiveRates } from './LiveRates';
 import { LiveRecords } from './LiveRecords';
 
@@ -32,6 +33,7 @@ export function LiveSettings({ period }: { period: string }) {
       {notice && <p role="status" className="px-5 pb-3 text-sm">{notice}</p>}
     </section>
     <LiveRates />
+    <LiveFuelPrices />
     <section><h2 className="mb-2 font-semibold">Distributors</h2><LiveRecords page="distributors" period={period} /></section>
     <section className="panel">
       <div className="panel-header"><h2>Audit history</h2><Button onClick={() => setAuditOpen(!auditOpen)}>{auditOpen ? 'Hide audit history' : 'Show audit history'}</Button></div>

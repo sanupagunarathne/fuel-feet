@@ -26,7 +26,7 @@ export function LiveDashboard({ period }: { period: string }) {
   const [vehicleId, setVehicleId] = useState('');
   const vehicles = useFleetQuery<Entity[]>('/vehicles?limit=200');
   const summary = useFleetQuery<Summary>(scope('/dashboard/summary', { month: period, vehicleId }));
-  const colors = ['var(--chart-maintenance)', 'var(--chart-repairs)', 'var(--chart-tolls)'];
+  const colors = ['var(--chart-maintenance)', 'var(--chart-repairs)', 'var(--chart-tolls)', 'var(--chart-fuel, #8b5cf6)'];
   return <div className="dashboard-grid">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Filter label="Vehicle" value={vehicleId} options={(vehicles.data ?? []).map((row) => ({ value: row.id, label: String(row.registration) }))} onChange={setVehicleId} />
@@ -37,7 +37,7 @@ export function LiveDashboard({ period }: { period: string }) {
         { name: 'Trip revenue', value: totals.revenue, note: `${totals.trips} confirmed trips`, Icon: CircleDollarSign, tone: 'green' },
         { name: 'Operating profit', value: totals.profit, note: 'Based on recorded costs', Icon: ChartNoAxesCombined, tone: 'green' },
         { name: 'Employee earnings', value: totals.earnings, note: 'Drivers and conductors', Icon: UsersRound, tone: 'blue' },
-        { name: 'Vehicle expenses', value: totals.expenses, note: 'Maintenance, repairs and tolls', Icon: ReceiptText, tone: 'amber' },
+        { name: 'Vehicle expenses', value: totals.expenses, note: 'Fuel, maintenance, repairs and tolls', Icon: ReceiptText, tone: 'amber' },
       ];
       return <>
         <div className="metric-grid">{metrics.map(({ name, value, note, Icon, tone }) => <section className="panel metric-card" key={name}>

@@ -137,13 +137,13 @@ test('authenticated transactions, reports, exports and private document lifecycl
 
     const report = `/reports/vehicle-profit?month=2026-04&vehicleId=${vehicleId}`;
     const json = (await get(report).expect(200)).body;
-    assert.equal(json.rows.at(-1)[10], '3575000');
+    assert.equal(json.rows.at(-1)[json.columns.findIndex((column: { label: string }) => column.label === 'Operating profit')], '3575000');
     const pdf = await get(report + '&format=pdf').buffer(true).parse(binaryParser).expect(200).expect('Content-Type', /application\/pdf/);
     assert.equal(pdf.body.subarray(0, 5).toString(), '%PDF-');
     const workbook = new ExcelJS.Workbook();
     const xlsx = await get(report + '&format=xlsx').buffer(true).parse(binaryParser).expect(200).expect('Content-Type', /spreadsheetml/);
     await workbook.xlsx.read(Readable.from([xlsx.body]));
-    assert.equal(workbook.worksheets[0]?.getCell(6, 11).value, 35750);
+    assert.equal(workbook.worksheets[0]?.getCell(6, 12).value, 35750);
 
     const attachmentPath = `/trips/${tripId}/attachments`;
     const upload = (data: Buffer, path = attachmentPath) => api.post('/api' + path).set('Authorization', auth)
@@ -198,6 +198,30 @@ test('authenticated transactions, reports, exports and private document lifecycl
     const recent = (await get(`/dashboard/summary?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body.recentTrips as { id: string }[];
     assert.ok(recent.every(({ id }) => id !== discardId));
     assert.notEqual((await post('/trips', unusedTrip).expect(201)).body.id, discardId);
+
+    const fuel = { vehicleId, expenseDate: '2026-04-30', category: 'FUEL', fuelLitres: '80' };
+    await post('/expenses', fuel).expect(422);
+    await put('/fuel-prices', { effectiveDate: '2026-04-25', pricePerLitre: '300' }).expect(200);
+    await put('/fuel-prices', { effectiveDate: '2026-05-01', pricePerLitre: '310' }).expect(200);
+    const { body: recordedFuel } = await post('/expenses', fuel).expect(201);
+    assert.equal(recordedFuel.amountCents, '2400000');
+    assert.equal(recordedFuel.fuelPriceCentsPerLitre, '30000');
+    await post('/expenses', fuel).expect(409);
+    await post('/expenses', { ...fuel, tripId }).expect(422);
+    await put('/fuel-prices', { effectiveDate: '2026-04-25', pricePerLitre: '320' }).expect(200);
+    const { body: correctedFuel } = await patch(`/expenses/${recordedFuel.id}`, {
+      version: 1, reason: 'Correct GPS reading', expense: { ...fuel, fuelLitres: '80.001' },
+    }).expect(200);
+    assert.equal(correctedFuel.amountCents, '2400030');
+    assert.equal(correctedFuel.fuelPriceCentsPerLitre, '30000');
+    const fuelSummary = (await get(`/dashboard/summary?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body;
+    assert.equal(fuelSummary.totals.revenue, '4950000');
+    assert.equal(fuelSummary.totals.profit, '1174970');
+    const fuelReport = (await get(report).expect(200)).body;
+    assert.equal(fuelReport.rows.at(-1)[fuelReport.columns.findIndex((column: { label: string }) => column.label === 'Fuel')], '2400030');
+    const { body: mayFuel } = await post('/expenses', { ...fuel, expenseDate: '2026-05-01', fuelLitres: '1.025' }).expect(201);
+    assert.equal(mayFuel.amountCents, '31775');
+    await post(`/expenses/${recordedFuel.id}/void`, { version: 2, reason: 'Void fuel test record' }).expect(200);
 
     await post(`/trips/${tripId}/void`, { version: 3, reason: 'Duplicate source trip' }).expect(200);
     const after = (await get(`/dashboard/summary?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body;

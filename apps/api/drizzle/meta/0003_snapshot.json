@@ -1,0 +1,1975 @@
+{
+  "id": "69e0f071-bd4a-46b9-89ce-b8c40d793ec2",
+  "prevId": "51e8a86e-6246-4d34-a770-3ae06fe0ce2e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "fuel_feet.audit_log": {
+      "name": "audit_log",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "actorId": {
+          "name": "actorId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entityType": {
+          "name": "entityType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entityId": {
+          "name": "entityId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requestId": {
+          "name": "requestId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before": {
+          "name": "before",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "after": {
+          "name": "after",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_log_entityType_entityId_createdAt_index": {
+          "name": "audit_log_entityType_entityId_createdAt_index",
+          "columns": [
+            {
+              "expression": "entityType",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entityId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "createdAt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "audit_log_actorId_user_profiles_id_fk": {
+          "name": "audit_log_actorId_user_profiles_id_fk",
+          "tableFrom": "audit_log",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "actorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.company_settings": {
+      "name": "company_settings",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "businessName": {
+          "name": "businessName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact": {
+          "name": "contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'LKR'"
+        },
+        "reportingZone": {
+          "name": "reportingZone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Asia/Colombo'"
+        },
+        "basis": {
+          "name": "basis",
+          "type": "EarningsBasis",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rounding": {
+          "name": "rounding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "policyApproved": {
+          "name": "policyApproved",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "reportSettings": {
+          "name": "reportSettings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.distributors": {
+      "name": "distributors",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "distributors_name_unique": {
+          "name": "distributors_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.document_attachments": {
+      "name": "document_attachments",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tripId": {
+          "name": "tripId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expenseId": {
+          "name": "expenseId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploadedById": {
+          "name": "uploadedById",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "objectKey": {
+          "name": "objectKey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mediaType": {
+          "name": "mediaType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "byteSize": {
+          "name": "byteSize",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "AttachmentStatus",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'STAGED'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "active_trip_attachment_checksum": {
+          "name": "active_trip_attachment_checksum",
+          "columns": [
+            {
+              "expression": "tripId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status <> 'RETAINED'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "active_expense_attachment_checksum": {
+          "name": "active_expense_attachment_checksum",
+          "columns": [
+            {
+              "expression": "expenseId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "status <> 'RETAINED'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_attachments_status_createdAt_index": {
+          "name": "document_attachments_status_createdAt_index",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "createdAt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "document_attachments_tripId_trip_sheets_id_fk": {
+          "name": "document_attachments_tripId_trip_sheets_id_fk",
+          "tableFrom": "document_attachments",
+          "tableTo": "trip_sheets",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "tripId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "document_attachments_expenseId_vehicle_expenses_id_fk": {
+          "name": "document_attachments_expenseId_vehicle_expenses_id_fk",
+          "tableFrom": "document_attachments",
+          "tableTo": "vehicle_expenses",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "expenseId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "document_attachments_uploadedById_user_profiles_id_fk": {
+          "name": "document_attachments_uploadedById_user_profiles_id_fk",
+          "tableFrom": "document_attachments",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "uploadedById"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "document_attachments_objectKey_unique": {
+          "name": "document_attachments_objectKey_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "objectKey"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.employees": {
+      "name": "employees",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "fullName": {
+          "name": "fullName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "CrewRole",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "defaultRateBps": {
+          "name": "defaultRateBps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "employees_id_role_unique": {
+          "name": "employees_id_role_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "role"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.fuel_prices": {
+      "name": "fuel_prices",
+      "schema": "fuel_feet",
+      "columns": {
+        "effectiveDate": {
+          "name": "effectiveDate",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "centsPerLitre": {
+          "name": "centsPerLitre",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fuel_price_positive": {
+          "name": "fuel_price_positive",
+          "value": "\"fuel_feet\".\"fuel_prices\".\"centsPerLitre\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fuel_feet.mutation_requests": {
+      "name": "mutation_requests",
+      "schema": "fuel_feet",
+      "columns": {
+        "actorId": {
+          "name": "actorId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payloadDigest": {
+          "name": "payloadDigest",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resultRef": {
+          "name": "resultRef",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mutation_requests_actorId_user_profiles_id_fk": {
+          "name": "mutation_requests_actorId_user_profiles_id_fk",
+          "tableFrom": "mutation_requests",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "actorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "mutation_requests_actorId_operation_key_pk": {
+          "name": "mutation_requests_actorId_operation_key_pk",
+          "columns": [
+            "actorId",
+            "operation",
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.salary_payments": {
+      "name": "salary_payments",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "employeeId": {
+          "name": "employeeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdById": {
+          "name": "createdById",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "earningsMonth": {
+          "name": "earningsMonth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paidOn": {
+          "name": "paidOn",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advance": {
+          "name": "advance",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "amountCents": {
+          "name": "amountCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "PaymentStatus",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RECORDED'"
+        },
+        "reversedAt": {
+          "name": "reversedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversedById": {
+          "name": "reversedById",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversalReason": {
+          "name": "reversalReason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "replacesId": {
+          "name": "replacesId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "salary_payments_employeeId_earningsMonth_index": {
+          "name": "salary_payments_employeeId_earningsMonth_index",
+          "columns": [
+            {
+              "expression": "employeeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "earningsMonth",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "salary_payments_paidOn_index": {
+          "name": "salary_payments_paidOn_index",
+          "columns": [
+            {
+              "expression": "paidOn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "salary_payments_employeeId_employees_id_fk": {
+          "name": "salary_payments_employeeId_employees_id_fk",
+          "tableFrom": "salary_payments",
+          "tableTo": "employees",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "employeeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "salary_payments_createdById_user_profiles_id_fk": {
+          "name": "salary_payments_createdById_user_profiles_id_fk",
+          "tableFrom": "salary_payments",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "createdById"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "salary_payments_reversedById_user_profiles_id_fk": {
+          "name": "salary_payments_reversedById_user_profiles_id_fk",
+          "tableFrom": "salary_payments",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "reversedById"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "salary_payments_replacesId_salary_payments_id_fk": {
+          "name": "salary_payments_replacesId_salary_payments_id_fk",
+          "tableFrom": "salary_payments",
+          "tableTo": "salary_payments",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "replacesId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "salary_payments_replacesId_unique": {
+          "name": "salary_payments_replacesId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "replacesId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.trip_earnings": {
+      "name": "trip_earnings",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tripId": {
+          "name": "tripId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employeeId": {
+          "name": "employeeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "CrewRole",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rateBps": {
+          "name": "rateBps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ratePerKmCents": {
+          "name": "ratePerKmCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amountCents": {
+          "name": "amountCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rounding": {
+          "name": "rounding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'HALF_UP'"
+        }
+      },
+      "indexes": {
+        "trip_earnings_employeeId_tripId_index": {
+          "name": "trip_earnings_employeeId_tripId_index",
+          "columns": [
+            {
+              "expression": "employeeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tripId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "trip_earnings_tripId_trip_sheets_id_fk": {
+          "name": "trip_earnings_tripId_trip_sheets_id_fk",
+          "tableFrom": "trip_earnings",
+          "tableTo": "trip_sheets",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "tripId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "trip_earnings_employeeId_role_employees_id_role_fk": {
+          "name": "trip_earnings_employeeId_role_employees_id_role_fk",
+          "tableFrom": "trip_earnings",
+          "tableTo": "employees",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "employeeId",
+            "role"
+          ],
+          "columnsTo": [
+            "id",
+            "role"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "trip_earnings_tripId_role_unique": {
+          "name": "trip_earnings_tripId_role_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tripId",
+            "role"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.trip_rate_schedules": {
+      "name": "trip_rate_schedules",
+      "schema": "fuel_feet",
+      "columns": {
+        "effectiveMonth": {
+          "name": "effectiveMonth",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "iocTariff": {
+          "name": "iocTariff",
+          "type": "numeric(18, 12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "driverCentsPerKm": {
+          "name": "driverCentsPerKm",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conductorCentsPerKm": {
+          "name": "conductorCentsPerKm",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.trip_sheets": {
+      "name": "trip_sheets",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "vehicleId": {
+          "name": "vehicleId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "driverId": {
+          "name": "driverId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conductorId": {
+          "name": "conductorId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "distributorId": {
+          "name": "distributorId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdById": {
+          "name": "createdById",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tripDate": {
+          "name": "tripDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destination": {
+          "name": "destination",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loadedDistanceKm": {
+          "name": "loadedDistanceKm",
+          "type": "numeric(9, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iocTariff": {
+          "name": "iocTariff",
+          "type": "numeric(18, 12)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rateEffectiveMonth": {
+          "name": "rateEffectiveMonth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revenueCents": {
+          "name": "revenueCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basis": {
+          "name": "basis",
+          "type": "EarningsBasis",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "basisCents": {
+          "name": "basisCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adjustmentReason": {
+          "name": "adjustmentReason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "policyVersion": {
+          "name": "policyVersion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "TripStatus",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "discarded": {
+          "name": "discarded",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "trip_sheets_status_tripDate_index": {
+          "name": "trip_sheets_status_tripDate_index",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tripDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "trip_sheets_vehicleId_tripDate_index": {
+          "name": "trip_sheets_vehicleId_tripDate_index",
+          "columns": [
+            {
+              "expression": "vehicleId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tripDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "trip_sheets_driverId_tripDate_index": {
+          "name": "trip_sheets_driverId_tripDate_index",
+          "columns": [
+            {
+              "expression": "driverId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tripDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "trip_sheets_conductorId_tripDate_index": {
+          "name": "trip_sheets_conductorId_tripDate_index",
+          "columns": [
+            {
+              "expression": "conductorId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tripDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "trip_sheets_vehicleId_vehicles_id_fk": {
+          "name": "trip_sheets_vehicleId_vehicles_id_fk",
+          "tableFrom": "trip_sheets",
+          "tableTo": "vehicles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "vehicleId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "trip_sheets_driverId_employees_id_fk": {
+          "name": "trip_sheets_driverId_employees_id_fk",
+          "tableFrom": "trip_sheets",
+          "tableTo": "employees",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "driverId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "trip_sheets_conductorId_employees_id_fk": {
+          "name": "trip_sheets_conductorId_employees_id_fk",
+          "tableFrom": "trip_sheets",
+          "tableTo": "employees",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "conductorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "trip_sheets_distributorId_distributors_id_fk": {
+          "name": "trip_sheets_distributorId_distributors_id_fk",
+          "tableFrom": "trip_sheets",
+          "tableTo": "distributors",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "distributorId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "trip_sheets_createdById_user_profiles_id_fk": {
+          "name": "trip_sheets_createdById_user_profiles_id_fk",
+          "tableFrom": "trip_sheets",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "createdById"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "trip_sheets_id_vehicleId_unique": {
+          "name": "trip_sheets_id_vehicleId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "vehicleId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.user_profiles": {
+      "name": "user_profiles",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "authSubject": {
+          "name": "authSubject",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "UserRole",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ADMIN'"
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_profiles_authSubject_unique": {
+          "name": "user_profiles_authSubject_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "authSubject"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.vehicle_crew_assignments": {
+      "name": "vehicle_crew_assignments",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "vehicleId": {
+          "name": "vehicleId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employeeId": {
+          "name": "employeeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "CrewRole",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startsOn": {
+          "name": "startsOn",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endsBefore": {
+          "name": "endsBefore",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "vehicle_crew_assignments_vehicleId_startsOn_index": {
+          "name": "vehicle_crew_assignments_vehicleId_startsOn_index",
+          "columns": [
+            {
+              "expression": "vehicleId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "startsOn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vehicle_crew_assignments_employeeId_startsOn_index": {
+          "name": "vehicle_crew_assignments_employeeId_startsOn_index",
+          "columns": [
+            {
+              "expression": "employeeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "startsOn",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vehicle_crew_assignments_vehicleId_vehicles_id_fk": {
+          "name": "vehicle_crew_assignments_vehicleId_vehicles_id_fk",
+          "tableFrom": "vehicle_crew_assignments",
+          "tableTo": "vehicles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "vehicleId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "vehicle_crew_assignments_employeeId_role_employees_id_role_fk": {
+          "name": "vehicle_crew_assignments_employeeId_role_employees_id_role_fk",
+          "tableFrom": "vehicle_crew_assignments",
+          "tableTo": "employees",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "employeeId",
+            "role"
+          ],
+          "columnsTo": [
+            "id",
+            "role"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fuel_feet.vehicle_expenses": {
+      "name": "vehicle_expenses",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "vehicleId": {
+          "name": "vehicleId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tripId": {
+          "name": "tripId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdById": {
+          "name": "createdById",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expenseDate": {
+          "name": "expenseDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "ExpenseCategory",
+          "typeSchema": "fuel_feet",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amountCents": {
+          "name": "amountCents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuelLitres": {
+          "name": "fuelLitres",
+          "type": "numeric(9, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuelPriceCentsPerLitre": {
+          "name": "fuelPriceCentsPerLitre",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voided": {
+          "name": "voided",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "one_daily_fuel_expense": {
+          "name": "one_daily_fuel_expense",
+          "columns": [
+            {
+              "expression": "vehicleId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expenseDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "NOT \"fuel_feet\".\"vehicle_expenses\".\"voided\" AND \"fuel_feet\".\"vehicle_expenses\".\"fuelLitres\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vehicle_expenses_expenseDate_category_index": {
+          "name": "vehicle_expenses_expenseDate_category_index",
+          "columns": [
+            {
+              "expression": "expenseDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vehicle_expenses_vehicleId_expenseDate_index": {
+          "name": "vehicle_expenses_vehicleId_expenseDate_index",
+          "columns": [
+            {
+              "expression": "vehicleId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expenseDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vehicle_expenses_tripId_vehicleId_index": {
+          "name": "vehicle_expenses_tripId_vehicleId_index",
+          "columns": [
+            {
+              "expression": "tripId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "vehicleId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vehicle_expenses_vehicleId_vehicles_id_fk": {
+          "name": "vehicle_expenses_vehicleId_vehicles_id_fk",
+          "tableFrom": "vehicle_expenses",
+          "tableTo": "vehicles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "vehicleId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "vehicle_expenses_tripId_vehicleId_trip_sheets_id_vehicleId_fk": {
+          "name": "vehicle_expenses_tripId_vehicleId_trip_sheets_id_vehicleId_fk",
+          "tableFrom": "vehicle_expenses",
+          "tableTo": "trip_sheets",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "tripId",
+            "vehicleId"
+          ],
+          "columnsTo": [
+            "id",
+            "vehicleId"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "vehicle_expenses_createdById_user_profiles_id_fk": {
+          "name": "vehicle_expenses_createdById_user_profiles_id_fk",
+          "tableFrom": "vehicle_expenses",
+          "tableTo": "user_profiles",
+          "schemaTo": "fuel_feet",
+          "columnsFrom": [
+            "createdById"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "daily_fuel_values": {
+          "name": "daily_fuel_values",
+          "value": "CASE WHEN \"fuel_feet\".\"vehicle_expenses\".\"category\"::text = 'FUEL'\n    THEN \"fuel_feet\".\"vehicle_expenses\".\"tripId\" IS NULL AND \"fuel_feet\".\"vehicle_expenses\".\"fuelLitres\" IS NOT NULL AND \"fuel_feet\".\"vehicle_expenses\".\"fuelLitres\" > 0\n      AND \"fuel_feet\".\"vehicle_expenses\".\"fuelPriceCentsPerLitre\" IS NOT NULL AND \"fuel_feet\".\"vehicle_expenses\".\"fuelPriceCentsPerLitre\" > 0\n      AND \"fuel_feet\".\"vehicle_expenses\".\"amountCents\" = round(\"fuel_feet\".\"vehicle_expenses\".\"fuelLitres\" * \"fuel_feet\".\"vehicle_expenses\".\"fuelPriceCentsPerLitre\")\n    ELSE \"fuel_feet\".\"vehicle_expenses\".\"fuelLitres\" IS NULL AND \"fuel_feet\".\"vehicle_expenses\".\"fuelPriceCentsPerLitre\" IS NULL END"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fuel_feet.vehicles": {
+      "name": "vehicles",
+      "schema": "fuel_feet",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "registration": {
+          "name": "registration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nickname": {
+          "name": "nickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "make": {
+          "name": "make",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "vehicles_registration_unique": {
+          "name": "vehicles_registration_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "registration"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "fuel_feet.AttachmentStatus": {
+      "name": "AttachmentStatus",
+      "schema": "fuel_feet",
+      "values": [
+        "STAGED",
+        "READY",
+        "RETAINED"
+      ]
+    },
+    "fuel_feet.CrewRole": {
+      "name": "CrewRole",
+      "schema": "fuel_feet",
+      "values": [
+        "DRIVER",
+        "CONDUCTOR"
+      ]
+    },
+    "fuel_feet.EarningsBasis": {
+      "name": "EarningsBasis",
+      "schema": "fuel_feet",
+      "values": [
+        "GROSS",
+        "ADJUSTED"
+      ]
+    },
+    "fuel_feet.ExpenseCategory": {
+      "name": "ExpenseCategory",
+      "schema": "fuel_feet",
+      "values": [
+        "MAINTENANCE",
+        "REPAIRS",
+        "HIGHWAY_BILLS",
+        "FUEL"
+      ]
+    },
+    "fuel_feet.PaymentStatus": {
+      "name": "PaymentStatus",
+      "schema": "fuel_feet",
+      "values": [
+        "RECORDED",
+        "REVERSED"
+      ]
+    },
+    "fuel_feet.TripStatus": {
+      "name": "TripStatus",
+      "schema": "fuel_feet",
+      "values": [
+        "DRAFT",
+        "CONFIRMED",
+        "VOIDED"
+      ]
+    },
+    "fuel_feet.UserRole": {
+      "name": "UserRole",
+      "schema": "fuel_feet",
+      "values": [
+        "ADMIN"
+      ]
+    }
+  },
+  "schemas": {
+    "fuel_feet": "fuel_feet"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
