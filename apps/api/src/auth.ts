@@ -18,6 +18,7 @@ type Identity = { subject: string; assurance: 'aal1' | 'aal2' };
 
 export type AuthDependencies = {
   verify: (token: string) => Promise<Identity | null>;
+  requireMfa?: boolean;
   findAdmin: (subject: string) => Promise<AdminProfile | null>;
 };
 
@@ -89,7 +90,7 @@ export function requireAdmin(auth?: AuthDependencies): RequestHandler<
         deny(403, 'ACCESS_DENIED', 'This account does not have workspace access.');
         return;
       }
-      if (identity.assurance !== 'aal2') {
+      if (auth.requireMfa !== false && identity.assurance !== 'aal2') {
         deny(403, 'MFA_REQUIRED', 'Complete two-factor verification to continue.');
         return;
       }

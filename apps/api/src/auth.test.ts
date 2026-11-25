@@ -33,10 +33,21 @@ it('requires MFA for a provisioned administrator', async () => {
   expect(result.body.error.code).toBe('MFA_REQUIRED');
 });
 
-it('returns the enabled profile only at AAL2', async () => {
+it('returns an enabled profile at AAL2 by default', async () => {
   const app = createApp({ webOrigin, auth: auth('aal2') });
   await request(app).get('/api/me').set('Authorization', token).expect('Cache-Control', 'no-store')
     .expect(200, { id, role: 'ADMIN' });
+});
+
+it('allows password-only access for a verified, enabled admin when MFA is disabled', async () => {
+  const dependency = { ...auth('aal1'), requireMfa: false };
+  const app = createApp({ webOrigin, auth: dependency });
+  await request(app).get('/api/me').set('Authorization', token).expect(200, { id, role: 'ADMIN' });
+  await request(app).get('/api/me').expect(401);
+  await request(createApp({ webOrigin, auth: { ...dependency, verify: async () => null } }))
+    .get('/api/me').set('Authorization', token).expect(401);
+  await request(createApp({ webOrigin, auth: { ...dependency, findAdmin: async () => null } }))
+    .get('/api/me').set('Authorization', token).expect(403);
 });
 
 it('fails closed when the identity service is unavailable', async () => {

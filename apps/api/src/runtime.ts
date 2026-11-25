@@ -14,6 +14,7 @@ export function createRuntime(environment: NodeJS.ProcessEnv, options: {
   const auth = db && config.supabase ? {
     verify: createSupabaseVerifier(config.supabase.url, config.supabase.key),
     findAdmin: db.findAdmin,
+    requireMfa: config.requireMfa,
   } : undefined;
   const app = createApp({
     webOrigin: config.webOrigin,
