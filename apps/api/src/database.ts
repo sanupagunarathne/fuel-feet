@@ -4,12 +4,13 @@ import { Pool } from 'pg';
 import { tripRateSchedules, userProfiles } from './db/schema.js';
 import { logger } from './logger.js';
 
-export function createDatabase(connectionString: string) {
+export function createDatabase(connectionString: string, maxUses?: number) {
   const pool = new Pool({
     connectionString,
     connectionTimeoutMillis: 5000,
     statement_timeout: 5000,
     max: 5,
+    maxUses,
   });
   pool.on('error', () => logger.error('Idle database connection failed'));
   const db = drizzle(pool);

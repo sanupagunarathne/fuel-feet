@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import cors from 'cors';
 import express from 'express';
-import type { ErrorRequestHandler } from 'express';
+import type { ErrorRequestHandler, RequestHandler } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { apiErrorResponseSchema, healthResponseSchema } from '@fuel-feet/shared';
@@ -15,13 +15,14 @@ import { FleetError } from './fleet/common.js';
 import type { Database } from './fleet/common.js';
 import { logger } from './logger.js';
 
-export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocumentBytes }: {
+export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocumentBytes, accessLimiter }: {
   webOrigin: string;
   auth?: AuthDependencies;
   db?: Database;
   storage?: DocumentStorage;
   maxDocumentBytes?: number;
   databaseReady?: () => Promise<void>;
+  accessLimiter?: RequestHandler;
 }) {
   const app = express();
   app.disable('x-powered-by');
@@ -61,7 +62,7 @@ export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocu
     }
   });
 
-  const accessLimiter = rateLimit({
+  const limitAccess = accessLimiter ?? rateLimit({
     windowMs: 60_000,
     limit: 180,
     standardHeaders: 'draft-8',
@@ -77,11 +78,11 @@ export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocu
     },
   });
 
-  app.get('/api/me', accessLimiter, requireAdmin(auth), (_request, response) => {
+  app.get('/api/me', limitAccess, requireAdmin(auth), (_request, response) => {
     response.json(response.locals.admin);
   });
 
-  if (db) app.use('/api', accessLimiter, requireAdmin(auth), fleetRouter(db, storage, maxDocumentBytes));
+  if (db) app.use('/api', limitAccess, requireAdmin(auth), fleetRouter(db, storage, maxDocumentBytes));
 
   app.use((_request, response) => {
     response.status(404).json(apiErrorResponseSchema.parse({
