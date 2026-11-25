@@ -57,7 +57,14 @@ export function createApp({ webOrigin, auth, databaseReady, db, storage, maxDocu
       if (!auth || !databaseReady) throw new Error('Dependencies unavailable');
       await databaseReady();
       response.json({ status: 'ok' });
-    } catch {
+    } catch (error) {
+      const failure = error instanceof Error ? (error.cause ?? error) : error;
+      const code = failure && typeof failure === 'object' && 'code' in failure ? failure.code : undefined;
+      const reason = typeof code === 'string' && /^[A-Z0-9_]{3,32}$/.test(code) ? code
+        : failure instanceof Error && /timeout/i.test(failure.message) ? 'TIMEOUT'
+        : !auth || !databaseReady ? 'DEPENDENCIES_UNCONFIGURED'
+        : 'UNKNOWN';
+      logger.warn({ requestId: response.get('X-Request-Id'), reason }, 'API readiness check failed');
       response.status(503).json({ status: 'unavailable' });
     }
   });
