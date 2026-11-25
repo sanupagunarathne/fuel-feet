@@ -41,3 +41,22 @@ Hosted rollout, billing approval, and provider-specific backup verification rema
 ## Hosting budget for owner review
 
 For planning, allow roughly USD 52 per month for one Vercel Pro seat, a small always-on Render web service, and one Supabase Pro project. The estimate assumes USD 20, USD 7, and USD 25 respectively. Confirm current quotes, eligible plans, and tax before approval. Set aside a separate budget for off-site storage, backup retention or point-in-time recovery, overages, and email delivery if used. The public pricing pages could not be confirmed from the development environment. [Vercel pricing](https://vercel.com/pricing) · [Render pricing](https://render.com/pricing) · [Supabase pricing](https://supabase.com/pricing)
+
+## Cloudflare Workers Free staging trial
+
+Use the existing **fuel-feet-api-staging** Worker created from Hello World. Keep the website on its current staging origin while testing. From the repository root, build the API and authenticate Wrangler using your own Cloudflare account.
+
+```powershell
+npm ci
+npm run build:shared
+npm run build -w @fuel-feet/api
+npx --yes --package=wrangler@4.168.0 wrangler login
+```
+
+In Cloudflare, open the Worker and go to **Settings → Variables and Secrets**. Add `DATABASE_URL` (the restricted Supabase runtime connection with TLS), `SUPABASE_URL` (HTTPS), `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_STORAGE_KEY` as secrets. Keep the migration-owner URL on your computer. Confirm the bucket name and website origin in [wrangler.jsonc](../apps/api/cloudflare/wrangler.jsonc), then apply pending migrations to staging using the database connection guide.
+
+```powershell
+npx --yes --package=wrangler@4.168.0 wrangler deploy --config apps/api/cloudflare/wrangler.jsonc
+```
+
+Check `/api/health` and `/api/ready` on the public Worker URL. Both should return HTTP 200 with `{"status":"ok"}`. Configure the staging web project's `VITE_API_BASE_URL` to the Worker URL plus `/api`, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, and redeploy the website. Test MFA sign-in, receipt upload and download, and a representative full-month Excel and PDF export. Verify those requests against the hosted Free plan limits before using this setup for daily business operations.
