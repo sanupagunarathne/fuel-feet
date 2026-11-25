@@ -1,3 +1,4 @@
+import { fuelAmount, fuelPriceFor } from './rates.js';
 import type { Router } from 'express';
 import { and, asc, desc, eq, getTableColumns, ilike, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -144,24 +145,37 @@ export function recordsRoutes(router: Router, db: Database) {
       const result = await mutate(db, ctx, `expense-${operation}`, { targetId, input, metadata }, async (tx) => {
         const before = targetId ? requireRow((await tx.select().from(vehicleExpenses).where(eq(vehicleExpenses.id, targetId)).for('update'))[0], 'Expense') : null;
         if (before && (before.version !== metadata?.version || before.voided)) conflict('Reload the expense before editing.');
-        if (input?.tripId) {
+        if (input && before && (input.category === 'FUEL') !== (before.category === 'FUEL')) {
+          invalid('Use the original expense type when editing.');
+        }
+        const tripId = input && input.category !== 'FUEL' ? input.tripId : null;
+        if (tripId) {
           const [trip] = await tx.select({ id: tripSheets.id }).from(tripSheets)
-            .where(and(eq(tripSheets.id, input.tripId), eq(tripSheets.discarded, false))).for('share');
+            .where(and(eq(tripSheets.id, tripId), eq(tripSheets.discarded, false))).for('share');
           if (!trip) invalid('Choose an available trip.');
         }
-        const fields = input ? {
-          vehicleId: input.vehicleId, tripId: input.tripId, expenseDate: input.expenseDate,
-          category: input.category, amountCents: cents(input.amount), description: input.description,
-        } : { voided: true };
         let expenseId = targetId;
-        if (input && targetId === null) {
-          const [row] = await tx.insert(vehicleExpenses).values({
-            vehicleId: input.vehicleId, tripId: input.tripId, expenseDate: input.expenseDate, category: input.category,
-            amountCents: cents(input.amount), description: input.description, createdById: ctx.actorId,
-          }).returning();
-          expenseId = requireRow(row, 'Expense').id;
+        if (input) {
+          const cost = input.category === 'FUEL'
+            ? await (async () => {
+              const price = before?.expenseDate === input.expenseDate && before.fuelPriceCentsPerLitre !== null
+                ? before.fuelPriceCentsPerLitre : await fuelPriceFor(tx, input.expenseDate);
+              return { fuelLitres: input.fuelLitres, fuelPriceCentsPerLitre: price, amountCents: fuelAmount(input.fuelLitres, price) };
+            })()
+            : { amountCents: cents(input.amount) };
+          const fields = {
+            vehicleId: input.vehicleId, tripId, expenseDate: input.expenseDate,
+            category: input.category, description: input.description, ...cost,
+          };
+          if (before) {
+            await tx.update(vehicleExpenses).set({ ...fields, version: before.version + 1 }).where(eq(vehicleExpenses.id, before.id));
+          } else {
+            const [row] = await tx.insert(vehicleExpenses).values({ ...fields, createdById: ctx.actorId }).returning();
+            expenseId = requireRow(row, 'Expense').id;
+          }
+        } else if (before) {
+          await tx.update(vehicleExpenses).set({ voided: true, version: before.version + 1 }).where(eq(vehicleExpenses.id, before.id));
         }
-        if (before && targetId) await tx.update(vehicleExpenses).set({ ...fields, version: before.version + 1 }).where(eq(vehicleExpenses.id, targetId));
         const after = requireRow((await tx.select().from(vehicleExpenses).where(eq(vehicleExpenses.id, expenseId!)))[0], 'Expense');
         await recordAudit(tx, ctx, 'expense', operation, after.id, before, after, metadata?.reason);
         return after.id;

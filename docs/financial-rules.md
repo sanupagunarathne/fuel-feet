@@ -92,3 +92,11 @@ Vehicle-filtered salary views can show attributed earnings and counts. Payments,
 ## Historical percentage records
 
 The migration preserves existing confirmed percentage-based earnings. To confirm a draft from the earlier version, first enter its loaded one-way distance and review the new calculation.
+
+## Daily running fuel
+
+In **Settings → Fuel prices**, enter the price paid per litre and the date it starts. In **Expenses → Record daily fuel**, enter the bowser, fuel use date, and the day's total litres burned from GPS. Combine multiple journeys for the same bowser on the same day into a single entry.
+
+The system multiplies the GPS litres by the most recent price effective on or before the fuel use date, and rounds the cost to the nearest cent, half up. The original unit price is stored with each entry. Editing litres on the same date keeps the original unit price. Changing the date selects the price applicable to the new date.
+
+Monthly fleet and vehicle profit reports count each active daily fuel entry once as a **Fuel** expense. Trip sheets continue to record IOC revenue and crew earnings separately.

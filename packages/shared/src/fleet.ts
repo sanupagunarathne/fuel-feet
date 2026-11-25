@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const crewRoles = ['DRIVER', 'CONDUCTOR'] as const;
-export const expenseCategories = ['MAINTENANCE', 'REPAIRS', 'HIGHWAY_BILLS'] as const;
+const generalExpenseCategories = ['MAINTENANCE', 'REPAIRS', 'HIGHWAY_BILLS'] as const;
+export const expenseCategories = [...generalExpenseCategories, 'FUEL'] as const;
 export const moneyInput = z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, 'Enter a rupee amount with up to two decimal places.');
 export const monthInput = z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/);
 export const distanceInput = z.string().regex(/^\d{1,6}(\.\d{1,3})?$/, 'Enter the one-way distance in km, with up to three decimal places.')
@@ -43,9 +44,21 @@ export const legacyTripInput = tripDetails.extend({
   revenue: moneyInput, adjustedBasis: moneyInput.nullable().default(null),
   adjustmentReason: reasonInput.nullable().default(null),
 });
-export const expenseInput = z.strictObject({
-  vehicleId: z.uuid(), tripId: choice, expenseDate: z.iso.date(), category: z.enum(expenseCategories),
-  amount: moneyInput, description: notes,
+const expenseDetails = z.strictObject({
+  vehicleId: z.uuid(), expenseDate: z.iso.date(), description: notes,
+});
+export const expenseInput = z.union([
+  expenseDetails.extend({ tripId: choice, category: z.enum(generalExpenseCategories), amount: moneyInput }),
+  expenseDetails.extend({
+    category: z.literal('FUEL'),
+    fuelLitres: z.string().regex(/^\d{1,6}(\.\d{1,3})?$/, 'Enter litres with up to three decimal places.')
+      .refine((value) => /[1-9]/.test(value), 'Enter positive litres.'),
+  }),
+]);
+export const fuelPriceInput = z.strictObject({
+  effectiveDate: z.iso.date(),
+  pricePerLitre: moneyInput.refine((value) => /^\d{1,6}(\.\d{1,2})?$/.test(value) && /[1-9]/.test(value),
+    'Enter a positive fuel price below 1,000,000 LKR per litre.'),
 });
 export const paymentInput = z.strictObject({
   employeeId: z.uuid(), earningsMonth: monthInput, paidOn: z.iso.date(),

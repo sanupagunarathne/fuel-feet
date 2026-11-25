@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  bigint, boolean, char, date, foreignKey, index, integer, jsonb, numeric, pgSchema,
+  bigint, boolean, char, check, date, foreignKey, index, integer, jsonb, numeric, pgSchema,
   primaryKey, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -14,7 +14,7 @@ export const tripStatus = fleetSchema.enum('TripStatus', ['DRAFT', 'CONFIRMED', 
 
 export const earningsBasis = fleetSchema.enum('EarningsBasis', ['GROSS', 'ADJUSTED']);
 
-export const expenseCategory = fleetSchema.enum('ExpenseCategory', ['MAINTENANCE', 'REPAIRS', 'HIGHWAY_BILLS']);
+export const expenseCategory = fleetSchema.enum('ExpenseCategory', ['MAINTENANCE', 'REPAIRS', 'HIGHWAY_BILLS', 'FUEL']);
 
 export const paymentStatus = fleetSchema.enum('PaymentStatus', ['RECORDED', 'REVERSED']);
 
@@ -88,6 +88,11 @@ export const tripRateSchedules = fleetSchema.table('trip_rate_schedules', {
   updatedAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const fuelPrices = fleetSchema.table('fuel_prices', {
+  effectiveDate: date().primaryKey(),
+  centsPerLitre: bigint({ mode: 'bigint' }).notNull(),
+}, (table) => [check('fuel_price_positive', sql`${table.centsPerLitre} > 0`)]);
+
 export const tripSheets = fleetSchema.table('trip_sheets', {
   id: uuid().primaryKey().defaultRandom(),
   vehicleId: uuid().notNull(),
@@ -151,6 +156,8 @@ export const vehicleExpenses = fleetSchema.table('vehicle_expenses', {
   category: expenseCategory().notNull(),
   amountCents: bigint({ mode: 'bigint' }).notNull(),
   description: text(),
+  fuelLitres: numeric({ precision: 9, scale: 3 }),
+  fuelPriceCentsPerLitre: bigint({ mode: 'bigint' }),
   voided: boolean().notNull().default(false),
   version: integer().notNull().default(1),
   createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
@@ -159,6 +166,13 @@ export const vehicleExpenses = fleetSchema.table('vehicle_expenses', {
   foreignKey({ columns: [table.vehicleId], foreignColumns: [vehicles.id] }).onDelete('restrict').onUpdate('restrict'),
   foreignKey({ columns: [table.tripId, table.vehicleId], foreignColumns: [tripSheets.id, tripSheets.vehicleId] }).onDelete('restrict').onUpdate('restrict'),
   foreignKey({ columns: [table.createdById], foreignColumns: [userProfiles.id] }).onDelete('restrict').onUpdate('restrict'),
+  check('daily_fuel_values', sql`CASE WHEN ${table.category}::text = 'FUEL'
+    THEN ${table.tripId} IS NULL AND ${table.fuelLitres} IS NOT NULL AND ${table.fuelLitres} > 0
+      AND ${table.fuelPriceCentsPerLitre} IS NOT NULL AND ${table.fuelPriceCentsPerLitre} > 0
+      AND ${table.amountCents} = round(${table.fuelLitres} * ${table.fuelPriceCentsPerLitre})
+    ELSE ${table.fuelLitres} IS NULL AND ${table.fuelPriceCentsPerLitre} IS NULL END`),
+  uniqueIndex('one_daily_fuel_expense').on(table.vehicleId, table.expenseDate)
+    .where(sql`NOT ${table.voided} AND ${table.fuelLitres} IS NOT NULL`),
   index().on(table.expenseDate, table.category),
   index().on(table.vehicleId, table.expenseDate),
   index().on(table.tripId, table.vehicleId),
