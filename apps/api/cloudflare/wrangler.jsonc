@@ -12,6 +12,7 @@
     "simple": { "limit": 180, "period": 60 }
   }],
   "vars": {
+    "REQUIRE_MFA": "false",
     "WEB_ORIGIN": "https://fuel-feet.vercel.app",
     "SUPABASE_DOCUMENT_BUCKET": "fuel-feet-documents"
   }

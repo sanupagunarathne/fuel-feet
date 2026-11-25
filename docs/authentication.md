@@ -1,6 +1,6 @@
 # Authentication and provisioning
 
-Fuel Feet uses Supabase email/password and TOTP. Complete setup in a separate development project or the local Supabase CLI stack. Supabase issues the identity and manages refresh tokens. The API checks the bearer token with the configured Auth service, checks the issuer, expiry and audience, and requires an enabled administrator profile and AAL2.
+Fuel Feet uses Supabase email/password and TOTP. Complete setup in a separate development project or the local Supabase CLI stack. Supabase issues the identity and manages refresh tokens. The API checks the bearer token with the configured Auth service, checks the issuer, expiry and audience, and requires an enabled administrator profile. The API requires AAL2 by default. The Cloudflare staging Worker sets `REQUIRE_MFA=false` so enabled administrators can use email and password alone. Set `REQUIRE_MFA=true` and redeploy to restore the authenticator prompt.
 
 ## Provision a development administrator
 
@@ -18,7 +18,7 @@ Fuel Feet uses Supabase email/password and TOTP. Complete setup in a separate de
 
 Keep passwords, MFA setup keys, privileged provider keys and database credentials out of browser configuration and logs. Use HTTPS for hosted environments. The browser stores the Supabase session using the provider SDK and clears the workspace query cache on sign-out. Sign-out revokes the local refresh session. Disable an administrator's database profile to block access on the next protected API request. Browser access is rechecked on focus and every minute. Test session lifetimes and per-session revocation settings with the selected hosting configuration before launch.
 
-Stage an owner MFA recovery procedure before rollout. Recovery requires a verified administrator with access to the managed provider. The app exposes no enrollment bypass or self-service privilege grant.
+Stage an owner MFA recovery procedure before rollout. Recovery requires a verified administrator with access to the managed provider. The app exposes no self-service privilege grant.
 
 ## Preview and readiness
 

@@ -16,6 +16,7 @@ const configSchema = z.object({
     .optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
+  REQUIRE_MFA: z.enum(['true', 'false']).default('true'),
   DOCUMENT_MAX_BYTES: z.coerce.number().int().min(1000).max(20_971_520).optional(),
 });
 
@@ -45,7 +46,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv) {
   }
 
   return {
-    port, webOrigin,
+    port, webOrigin, requireMfa: result.data.REQUIRE_MFA === 'true',
     ...(authUrl && authKey ? { supabase: { url: authUrl, key: authKey } } : {}),
     ...(databaseUrl ? { databaseUrl } : {}),
     ...(result.data.DOCUMENT_MAX_BYTES ? { maxDocumentBytes: result.data.DOCUMENT_MAX_BYTES } : {}),
