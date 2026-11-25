@@ -13,7 +13,7 @@ import type { Entity, Field, Option } from './fields';
 import { Documents } from './Documents';
 
 export type EntityPage = 'vehicles' | 'employees' | 'trips' | 'expenses' | 'distributors';
-type Editor = { action: 'new' | 'edit' | 'crew' | 'confirm' | 'void' | 'files'; row?: Entity };
+type Editor = { action: 'new' | 'edit' | 'crew' | 'confirm' | 'void' | 'files' | 'discard'; row?: Entity };
 type Crew = { id: string; employeeId: string; role: string; startsOn: string; endsBefore: string | null };
 
 const pageTitles: Record<EntityPage, string> = { vehicles: 'Vehicle', employees: 'Employee', trips: 'Trip', expenses: 'Expense', distributors: 'Distributor' };
@@ -70,7 +70,10 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
       {row.status !== 'VOIDED' && !row.voided && <Button onClick={() => setDialog({ action: 'edit', row })}>
         {row.status === 'CONFIRMED' ? 'Correct' : 'Edit'}
       </Button>}
-      {row.status === 'DRAFT' && <Button onClick={() => setDialog({ action: 'confirm', row })}>Confirm</Button>}
+      {row.status === 'DRAFT' && <>
+        <Button onClick={() => setDialog({ action: 'confirm', row })}>Confirm</Button>
+        <Button onClick={() => setDialog({ action: 'discard', row })}>Discard draft</Button>
+      </>}
       {(row.status === 'CONFIRMED' || page === 'expenses' && !row.voided) && <Button onClick={() => setDialog({ action: 'void', row })}>Void</Button>}
       {page === 'vehicles' && <>
         <Button onClick={() => setDialog({ action: 'crew', row })}>Crew</Button>
@@ -103,7 +106,7 @@ export function LiveRecords({ page, period }: { page: EntityPage; period: string
   async function saved() {
     await queries.invalidateQueries({ queryKey: ['fleet'] });
     close();
-    setNotice('Record saved.');
+    setNotice(editor?.action === 'discard' ? 'Trip draft discarded.' : 'Record saved.');
   }
   return (
     <section className="panel">
@@ -147,7 +150,18 @@ function RecordDialog({ editor, page, period, onClose, onSaved }: {
   editor: Editor; page: EntityPage; period: string; onClose: () => void; onSaved: () => Promise<void>;
 }) {
   const { action, row } = editor;
-  const title = `${{ new: 'Add', edit: row?.status === 'CONFIRMED' ? 'Correct' : 'Edit', crew: 'Manage', confirm: 'Confirm', void: 'Void', files: 'Documents for' }[action]} ${action === 'crew' ? 'crew' : pageTitles[page].toLowerCase()}`;
+  const mutate = useFleetMutation();
+  if (action === 'discard' && row) {
+    return <EditDialog title="Discard trip draft" onClose={onClose}>
+      <EditorForm fields={[]} initial={{}} onClose={onClose} submitLabel="Discard draft" onSubmit={async () => {
+        await mutate(`/trips/${row.id}/discard`, 'POST', { version: row.version });
+        await onSaved();
+      }}>
+        <p className="text-sm">Discard trip draft {row.reference}? This removes the draft and its documents from the trip list.</p>
+      </EditorForm>
+    </EditDialog>;
+  }
+  const title = `${{ new: 'Add', edit: row?.status === 'CONFIRMED' ? 'Correct' : 'Edit', crew: 'Manage', confirm: 'Confirm', void: 'Void', files: 'Documents for', discard: 'Discard' }[action]} ${action === 'crew' ? 'crew' : pageTitles[page].toLowerCase()}`;
   if (action === 'files' && row && (page === 'trips' || page === 'expenses')) {
     return <EditDialog title={title} onClose={onClose}><Documents page={page} id={row.id} /></EditDialog>;
   }

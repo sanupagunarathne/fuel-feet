@@ -49,6 +49,7 @@ Synthetic rounding vector for tests only. A basis of one cent and a rate of 50% 
 | Starting state | Operation | Financial effect |
 | --- | --- | --- |
 | Draft | Edit or preview | Save entered values or return a preview. Draft data contributes nothing to reports. |
+| Draft | Discard | Hide the draft and its attachments from active views. Retain the audit history and allow the reference to be used again. Any active expense must be unlinked or voided first. |
 | Draft | Confirm | Validate the latest draft, employee roles, reference scope, and applicable policy. Commit the trip, both entitlement rows, and the audit event together. |
 | Confirmed | Correct | Require the current version and a reason. For a reference or notes correction, preserve both entitlements. For a financial correction, preview any changed amounts and update the affected snapshots and audit event together. |
 | Confirmed | Void | Require a reason and audit the change. Exclude the trip and its entitlements from current reports. Preserve the payment history and any independently recorded vehicle expenses. |

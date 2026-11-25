@@ -26,7 +26,7 @@ const money = (label: string) => ({ label, kind: 'money' as const });
 const date = (label: string) => ({ label, kind: 'date' as const });
 const label = (value: string) => value.replaceAll('_', ' ').toLowerCase().replace(/^./, (first) => first.toUpperCase());
 const total = (column: Parameters<typeof sql>[1]) => sql<string>`coalesce(sum(${column}), 0)::text`;
-const tripFilter = (range: Range, q: Scope) => and(dateRange(tripSheets.tripDate, range),
+const tripFilter = (range: Range, q: Scope) => and(dateRange(tripSheets.tripDate, range), eq(tripSheets.discarded, false),
   q.vehicleId ? eq(tripSheets.vehicleId, q.vehicleId) : undefined);
 const expenseFilter = (range: Range, q: Scope) => and(dateRange(vehicleExpenses.expenseDate, range),
   q.vehicleId ? eq(vehicleExpenses.vehicleId, q.vehicleId) : undefined);

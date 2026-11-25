@@ -145,9 +145,11 @@ test('authenticated transactions, reports, exports and private document lifecycl
     await workbook.xlsx.read(Readable.from([xlsx.body]));
     assert.equal(workbook.worksheets[0]?.getCell(6, 11).value, 35750);
 
-    const attachmentPath = `/api/trips/${tripId}/attachments`;
-    const upload = (data: Buffer) => api.post(attachmentPath).set('Authorization', auth)
+    const attachmentPath = `/trips/${tripId}/attachments`;
+    const upload = (data: Buffer, path = attachmentPath) => api.post('/api' + path).set('Authorization', auth)
       .set('Idempotency-Key', randomUUID()).attach('file', data, { filename: 'test.pdf', contentType: 'application/pdf' });
+    const remove = (documentId: string, key = randomUUID()) => api.delete(`/api/attachments/${documentId}`)
+      .set('Authorization', auth).set('Idempotency-Key', key).send({});
     await upload(Buffer.from('incorrect file')).expect(422);
     await upload(Buffer.alloc(2048)).expect(413);
     const syntheticPdf = pdf.body as Buffer;
@@ -159,12 +161,52 @@ test('authenticated transactions, reports, exports and private document lifecycl
     await api.get(`/api/attachments/${document.body.id}/download`).expect(401);
     const fetched = await get(`/attachments/${document.body.id}/download`).buffer(true).parse(binaryParser).expect(200);
     assert.deepEqual(fetched.body, smallPdf);
+    await api.delete(`/api/attachments/${document.body.id}`).expect(401);
+    const removalKey = randomUUID();
+    await remove(document.body.id, removalKey).expect(200);
+    await remove(document.body.id, removalKey).expect(200);
+    await remove(document.body.id).expect(200);
+    assert.deepEqual((await get(attachmentPath).expect(200)).body, []);
+    await get(`/attachments/${document.body.id}/download`).expect(404);
+    assert.notEqual((await upload(smallPdf).expect(201)).body.id, document.body.id);
+    assert.equal(objects.size, 2);
+
+    const unusedTrip = { ...draft, reference: `DISCARD-${external}` };
+    const discardId = (await post('/trips', unusedTrip).expect(201)).body.id;
+    const discardPath = `/trips/${discardId}/discard`;
+    const draftAttachments = `/trips/${discardId}/attachments`;
+    const draftDoc = (await upload(smallPdf, draftAttachments).expect(201)).body.id;
+    const linkedExpense = (await post('/expenses', { ...expense, tripId: discardId }).expect(201)).body.id;
+    const expenseAttachments = `/expenses/${linkedExpense}/attachments`;
+    const expenseDoc = (await upload(smallPdf, expenseAttachments).expect(201)).body.id;
+    await remove(expenseDoc).expect(200);
+    assert.deepEqual((await get(expenseAttachments).expect(200)).body, []);
+    await post(discardPath, { version: 1 }).expect(409);
+    await post(`/expenses/${linkedExpense}/void`, { version: 1, reason: 'Remove test expense' }).expect(200);
+    await api.post('/api' + discardPath).send({ version: 1 }).expect(401);
+    await post(discardPath, { version: 2 }).expect(409);
+    await post(`/trips/${tripId}/discard`, { version: 3 }).expect(409);
+    const discardKey = randomUUID();
+    await post(discardPath, { version: 1 }, discardKey).expect(200);
+    await post(discardPath, { version: 1 }, discardKey).expect(200);
+    await get(`/trips/${discardId}`).expect(404);
+    await get(`/attachments/${draftDoc}/download`).expect(404);
+    await upload(smallPdf, draftAttachments).expect(404);
+    await post('/expenses', { ...expense, tripId: discardId }).expect(422);
+    const visible = (await get(`/trips?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body as { id: string }[];
+    assert.ok(visible.every(({ id }) => id !== discardId));
+    const recent = (await get(`/dashboard/summary?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body.recentTrips as { id: string }[];
+    assert.ok(recent.every(({ id }) => id !== discardId));
+    assert.notEqual((await post('/trips', unusedTrip).expect(201)).body.id, discardId);
+
     await post(`/trips/${tripId}/void`, { version: 3, reason: 'Duplicate source trip' }).expect(200);
     const after = (await get(`/dashboard/summary?month=2026-04&vehicleId=${vehicleId}`).expect(200)).body;
     assert.equal(after.totals.profit, '-100000');
     const audit = (await get('/audit?limit=200').expect(200)).body as { entityId: string; operation: string }[];
     assert.equal(audit.filter((entry) => entry.entityId === tripId && entry.operation === 'create').length, 1);
     assert.equal(audit.filter((entry) => entry.entityId === tripId && entry.operation === 'correct').length, 1);
+    assert.equal(audit.filter((entry) => entry.entityId === document.body.id && entry.operation === 'remove').length, 1);
+    assert.equal(audit.filter((entry) => entry.entityId === discardId && entry.operation === 'discard').length, 1);
   } finally { await database.close(); }
 });
 
